@@ -1,24 +1,25 @@
 import os
 import subprocess
 import threading
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, request, redirect
 from telebot import TeleBot
 import config
 
-# --- INICIALIZACIÓN ---
+# Inicialización
 bot = TeleBot(config.API_TOKEN)
 app = Flask(__name__)
 
-# --- LÓGICA DE VIDEO (MOTOR ULTRA-RÁPIDO) ---
-def procesar_y_enviar(video_path, chat_id):
-    if not os.path.exists(config.TEMP_FOLDER):
-        os.makedirs(config.TEMP_FOLDER)
+# Asegurar directorios
+if not os.path.exists(config.TEMP_FOLDER):
+    os.makedirs(config.TEMP_FOLDER)
 
-    # 1. Aviso de inicio
-    bot.send_message(chat_id, f"🚀 **Chrome Magic Good**: Iniciando segmentación de {config.CLIP_DURATION}s...")
-
-    # 2. Comando FFmpeg (Corte sin renderizar = Velocidad de Rayo)
-    output_pattern = os.path.join(config.TEMP_FOLDER, "clip_%03d.mp4")
+def motor_de_corte(video_path):
+    """Segmentación ultra-rápida sin recodificar"""
+    bot.send_message(config.CHAT_ID, "🚀 **Motor Iniciado**: Procesando video...")
+    
+    output_pattern = os.path.join(config.TEMP_FOLDER, "part_%03d.mp4")
+    
+    # Comando FFmpeg -c copy (Velocidad instantánea)
     comando = [
         'ffmpeg', '-i', video_path,
         '-f', 'segment',
@@ -31,76 +32,73 @@ def procesar_y_enviar(video_path, chat_id):
     try:
         subprocess.run(comando, check=True, capture_output=True)
         
-        # 3. Envío de clips y limpieza automática
-        segmentos = sorted([f for f in os.listdir(config.TEMP_FOLDER) if f.endswith('.mp4')])
+        # Enviar clips ordenados
+        clips = sorted([f for f in os.listdir(config.TEMP_FOLDER) if f.startswith('part_')])
         
-        for index, seg in enumerate(segmentos):
-            path_seg = os.path.join(config.TEMP_FOLDER, seg)
-            bot.send_message(chat_id, f"📦 **Enviando parte {index + 1}**...")
+        for clip in clips:
+            path_clip = os.path.join(config.TEMP_FOLDER, clip)
+            with open(path_clip, 'rb') as v:
+                bot.send_video(config.CHAT_ID, v, caption=f"🎬 Clip: {clip}")
+            os.remove(path_clip) # Limpieza inmediata
             
-            with open(path_seg, 'rb') as v:
-                bot.send_video(chat_id, v)
-            
-            os.remove(path_seg) # Borra para no llenar memoria
-
-        bot.send_message(chat_id, "✅ **Motor Detenido**: Proceso completado con éxito.")
-    
+        bot.send_message(config.CHAT_ID, "✅ **Proceso Finalizado**: Clips enviados a Telegram.")
     except Exception as e:
-        bot.send_message(chat_id, f"❌ **Error Crítico**: {str(e)}")
+        bot.send_message(config.CHAT_ID, f"❌ **Error en Motor**: {e}")
+    finally:
+        if os.path.exists(video_path): os.remove(video_path)
 
-# --- MANEJADOR DE TELEGRAM ---
-@bot.message_handler(content_types=['video'])
-def handle_incoming_video(message):
-    bot.reply_to(message, "📥 **Video Recibido**. Descargando al motor principal...")
-    
-    file_info = bot.get_file(message.video.file_id)
-    downloaded_file = bot.download_file(file_info.file_path)
-    
-    input_tmp = "input_temp.mp4"
-    with open(input_tmp, 'wb') as f:
-        f.write(downloaded_file)
-    
-    # Procesar en un hilo separado para no bloquear el bot
-    threading.Thread(target=procesar_y_enviar, args=(input_tmp, message.chat.id)).start()
-
-# --- CONSOLA WEB (Para Chrome) ---
 @app.route('/')
 def index():
-    # Estética Cyber-Imperial integrada directamente
-    return render_template_string('''
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-        <style>
-            body { background: #000; color: #00ff41; font-family: monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-            .box { border: 2px solid #00ff41; padding: 30px; box-shadow: 0 0 20px #00ff41; background: rgba(0,255,65,0.1); border-radius: 10px; text-align: center; }
-            h1 { text-shadow: 0 0 10px #00ff41; margin-bottom: 5px; }
-            .status { color: #ff00ff; font-weight: bold; }
-            .blink { animation: blinker 1.5s linear infinite; }
-            @keyframes blinker { 50% { opacity: 0; } }
-        </style>
-        <title>Chrome Magic Good Console</title>
-    </head>
-    <body>
-        <div class="box">
-            <h1>[ CHROME MAGIC GOOD V2 ]</h1>
-            <p>> Estatus: <span class="status blink">EJECUTANDO MOTOR</span></p>
-            <p>> Escaneando Puerto: 8080</p>
-            <p>> Modo: Hyper-Velocity Automatizado</p>
-            <hr style="border: 0.5px solid #00ff41;">
-            <p style="font-size: 0.8rem;">Desarrollado por Noa | Sistema Operativo MP</p>
-        </div>
-    </body>
-    </html>
-    ''')
+    # El HTML está integrado aquí para que sea un solo archivo main
+    return render_template_string(HTML_INTERFACE)
 
-def run_flask():
-    app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
+@app.route('/upload', methods=['POST'])
+def upload():
+    if 'file' not in request.files: return redirect('/')
+    file = request.files['file']
+    if file.filename == '': return redirect('/')
+    
+    temp_input = "input_upload.mp4"
+    file.save(temp_input)
+    
+    # Ejecutar motor en segundo plano para no congelar Chrome
+    threading.Thread(target=motor_de_corte, args=(temp_input,)).start()
+    return "<h1>🚀 Procesando... Mira tu Telegram.</h1><script>setTimeout(()=>window.location='/', 3000)</script>"
 
-# --- INICIO GLOBAL ---
+# Interfaz Cyber-Imperial
+HTML_INTERFACE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chrome Magic Good V2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { background: #000; color: #00ff41; font-family: 'Courier New', monospace; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        .console { border: 2px solid #00ff41; padding: 30px; box-shadow: 0 0 20px #00ff41; border-radius: 15px; text-align: center; background: rgba(0,255,65,0.05); }
+        h1 { text-shadow: 0 0 10px #00ff41; letter-spacing: 2px; }
+        .status { color: #ff00ff; font-weight: bold; margin: 15px 0; }
+        .upload-area { margin-top: 25px; border: 1px dashed #00ff41; padding: 20px; position: relative; }
+        input[type="file"] { position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; cursor: pointer; }
+        .btn { background: #00ff41; color: #000; padding: 10px 20px; border: none; font-weight: bold; cursor: pointer; }
+        .info { font-size: 0.7rem; color: #555; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="console">
+        <h1>[ CHROME MAGIC V2 ]</h1>
+        <div class="status">> MOTOR: LISTO PARA SUBIDA</div>
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <div class="upload-area">
+                <p>SELECCIONAR VIDEO</p>
+                <input type="file" name="file" accept="video/*" onchange="this.form.submit()">
+            </div>
+        </form>
+        <div class="info">Auto-Corte: 60s | Engine: FFmpeg-Copy | By Noa</div>
+    </div>
+</body>
+</html>
+'''
+
 if __name__ == "__main__":
-    print("💎 Chrome Magic Good V2 Iniciando...")
-    # Inicia la web en un hilo aparte
-    threading.Thread(target=run_flask).start()
-    # Inicia el Bot
-    bot.polling(none_stop=True)
+    print(f"💎 Servidor en: http://0.0.0.0:{config.PORT}")
+    app.run(host='0.0.0.0', port=config.PORT, debug=False)
