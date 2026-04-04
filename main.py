@@ -1,104 +1,97 @@
 import os
 import subprocess
 import threading
-from flask import Flask, render_template_string, request, redirect
+import time
+from flask import Flask, render_template_string, request
 from telebot import TeleBot
 import config
 
-# Inicialización
 bot = TeleBot(config.API_TOKEN)
 app = Flask(__name__)
 
-# Asegurar directorios
-if not os.path.exists(config.TEMP_FOLDER):
-    os.makedirs(config.TEMP_FOLDER)
-
-def motor_de_corte(video_path):
-    """Segmentación ultra-rápida sin recodificar"""
-    bot.send_message(config.CHAT_ID, "🚀 **Motor Iniciado**: Procesando video...")
-    
-    output_pattern = os.path.join(config.TEMP_FOLDER, "part_%03d.mp4")
-    
-    # Comando FFmpeg -c copy (Velocidad instantánea)
+def generar_thumbnail(video_path, output_thumb):
+    """Extrae un frame del segundo 2 para usar de portada"""
     comando = [
-        'ffmpeg', '-i', video_path,
-        '-f', 'segment',
-        '-segment_time', str(config.CLIP_DURATION),
-        '-reset_timestamps', '1',
-        '-c', 'copy', 
-        output_pattern
+        'ffmpeg', '-y', '-i', video_path,
+        '-ss', '00:00:02', '-vframes', '1',
+        output_thumb
     ]
+    subprocess.run(comando, capture_output=True)
 
-    try:
-        subprocess.run(comando, check=True, capture_output=True)
+def motor_netflix(video_path):
+    if not os.path.exists(config.TEMP_FOLDER): os.makedirs(config.TEMP_FOLDER)
+    
+    bot.send_message(config.CHANNEL_ID, f"🎬 **Mally Series**: Iniciando Temporada {config.TEMPORADA}...")
+
+    # Corte Ultra-Rápido
+    output_pattern = os.path.join(config.TEMP_FOLDER, "ep_%03d.mp4")
+    subprocess.run([
+        'ffmpeg', '-i', video_path, '-f', 'segment',
+        '-segment_time', str(config.CLIP_DURATION),
+        '-reset_timestamps', '1', '-c', 'copy', output_pattern
+    ], check=True)
+
+    episodios = sorted([f for f in os.listdir(config.TEMP_FOLDER) if f.startswith('ep_')])
+    
+    for i, ep in enumerate(episodios, 1):
+        path_video = os.path.join(config.TEMP_FOLDER, ep)
+        path_thumb = path_video.replace(".mp4", ".jpg")
         
-        # Enviar clips ordenados
-        clips = sorted([f for f in os.listdir(config.TEMP_FOLDER) if f.startswith('part_')])
+        # Crear miniatura para que se vea como Netflix
+        generar_thumbnail(path_video, path_thumb)
         
-        for clip in clips:
-            path_clip = os.path.join(config.TEMP_FOLDER, clip)
-            with open(path_clip, 'rb') as v:
-                bot.send_video(config.CHAT_ID, v, caption=f"🎬 Clip: {clip}")
-            os.remove(path_clip) # Limpieza inmediata
-            
-        bot.send_message(config.CHAT_ID, "✅ **Proceso Finalizado**: Clips enviados a Telegram.")
-    except Exception as e:
-        bot.send_message(config.CHAT_ID, f"❌ **Error en Motor**: {e}")
-    finally:
-        if os.path.exists(video_path): os.remove(video_path)
+        caption = f"🎬 **Mally Series**\n📌 Temporada {config.TEMPORADA} | Episodio {i}\n💎 @ImperioMP_Oficial"
+        
+        with open(path_video, 'rb') as v, open(path_thumb, 'rb') as t:
+            bot.send_video(config.CHANNEL_ID, v, thumb=t, caption=caption, parse_mode="Markdown")
+        
+        # Limpieza y Delay anti-flood
+        os.remove(path_video)
+        os.remove(path_thumb)
+        time.sleep(3) # Pausa de seguridad de 3 segundos
+
+    bot.send_message(config.CHANNEL_ID, f"✅ **Temporada {config.TEMPORADA} completa.**")
+    if os.path.exists(video_path): os.remove(video_path)
 
 @app.route('/')
 def index():
-    # El HTML está integrado aquí para que sea un solo archivo main
-    return render_template_string(HTML_INTERFACE)
+    return render_template_string(HTML_CONSOLE)
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    if 'file' not in request.files: return redirect('/')
     file = request.files['file']
-    if file.filename == '': return redirect('/')
-    
-    temp_input = "input_upload.mp4"
-    file.save(temp_input)
-    
-    # Ejecutar motor en segundo plano para no congelar Chrome
-    threading.Thread(target=motor_de_corte, args=(temp_input,)).start()
-    return "<h1>🚀 Procesando... Mira tu Telegram.</h1><script>setTimeout(()=>window.location='/', 3000)</script>"
+    path = "raw_video.mp4"
+    file.save(path)
+    threading.Thread(target=motor_netflix, args=(path,)).start()
+    return "<h1>🎥 Producción Iniciada. Revisa el Canal.</h1><script>setTimeout(()=>window.location='/', 2000)</script>"
 
-# Interfaz Cyber-Imperial
-HTML_INTERFACE = '''
+HTML_CONSOLE = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Chrome Magic Good V2</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mally Series Studio</title>
     <style>
-        body { background: #000; color: #00ff41; font-family: 'Courier New', monospace; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; }
-        .console { border: 2px solid #00ff41; padding: 30px; box-shadow: 0 0 20px #00ff41; border-radius: 15px; text-align: center; background: rgba(0,255,65,0.05); }
-        h1 { text-shadow: 0 0 10px #00ff41; letter-spacing: 2px; }
-        .status { color: #ff00ff; font-weight: bold; margin: 15px 0; }
-        .upload-area { margin-top: 25px; border: 1px dashed #00ff41; padding: 20px; position: relative; }
-        input[type="file"] { position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; cursor: pointer; }
-        .btn { background: #00ff41; color: #000; padding: 10px 20px; border: none; font-weight: bold; cursor: pointer; }
-        .info { font-size: 0.7rem; color: #555; margin-top: 15px; }
+        body { background: #000; color: #e50914; font-family: 'Arial', sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { border: 2px solid #e50914; padding: 40px; box-shadow: 0 0 30px rgba(229, 9, 20, 0.5); text-align: center; background: #141414; border-radius: 10px; }
+        .btn { background: #e50914; color: white; padding: 15px 30px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 20px; }
+        input[type="file"] { display: none; }
     </style>
 </head>
 <body>
-    <div class="console">
-        <h1>[ CHROME MAGIC V2 ]</h1>
-        <div class="status">> MOTOR: LISTO PARA SUBIDA</div>
+    <div class="card">
+        <h1 style="color: white; margin-bottom: 5px;">MALLY <span style="color: #e50914;">SERIES</span></h1>
+        <p style="color: #808080;">SISTEMA DE PRODUCCIÓN AUTOMÁTICA</p>
+        <hr style="border: 0.5px solid #333;">
         <form action="/upload" method="post" enctype="multipart/form-data">
-            <div class="upload-area">
-                <p>SELECCIONAR VIDEO</p>
+            <label class="btn">
+                SUBIR TEMPORADA
                 <input type="file" name="file" accept="video/*" onchange="this.form.submit()">
-            </div>
+            </label>
         </form>
-        <div class="info">Auto-Corte: 60s | Engine: FFmpeg-Copy | By Noa</div>
     </div>
 </body>
 </html>
 '''
 
 if __name__ == "__main__":
-    print(f"💎 Servidor en: http://0.0.0.0:{config.PORT}")
-    app.run(host='0.0.0.0', port=config.PORT, debug=False)
+    app.run(host='0.0.0.0', port=config.PORT)
