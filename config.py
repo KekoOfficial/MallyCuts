@@ -1,43 +1,28 @@
-# =====================================================
-# 🎬 MALLY SERIES PRO - CONFIGURACIÓN MAESTRA
-# =====================================================
+import os
 
-# --- 🔑 CREDENCIALES DE TELEGRAM ---
-# Obtén tu token en @BotFather
-API_TOKEN = "TU_TOKEN_AQUÍ"
+# --- CREDENCIALES ---
+API_TOKEN = "8759783698:AAFUuC67X--qXoqD4D2YQ7RYlPlHoQmoYlU"
+CHAT_ID = "-1003584710096" 
 
-# ID del Canal o Grupo donde se enviarán los videos (ej: -100123456789)
-CHAT_ID = "ID_DEL_CANAL_O_GRUPO"
+# --- DESCARGA (yt-dlp) ---
+THREADS = 8
+YTDL_OPTS = {
+    'format': 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+    'concurrent_fragments': THREADS,
+    'noprogress': True,
+    'quiet': True,
+}
 
-# Tu ID personal de usuario para funciones administrativas
-ADMIN_ID = "TU_ID_DE_USUARIO"
-
-
-# --- ⚙️ PARÁMETROS DE PRODUCCIÓN ---
-# Duración exacta de cada clip en segundos (60 = 1 minuto)
-CLIP_DURATION = 60
-
-# Carpeta base donde se guardarán temporalmente los episodios
-TEMP_FOLDER = "producciones_mally"
-
-# Puerto para la interfaz web de Termux
+# --- PROCESAMIENTO ---
+CLIP_DURATION = 300  # 5 minutos por clip
+TEMP_FOLDER = "mally_workdir"
 PORT = 5000
 
-
-# --- 🛡️ ESCUDO ANTI-TIMEOUT (RED ROBUSTA) ---
-# Tiempo máximo (segundos) esperando respuesta de subida (Recomendado: 600)
+# --- RED Y TIEMPOS ---
 READ_TIMEOUT = 600
-
-# Tiempo máximo (segundos) para establecer conexión inicial
-CONNECT_TIMEOUT = 80
-
-# Número de intentos si un episodio falla antes de pasar al siguiente
+CONNECT_TIMEOUT = 60
 MAX_RETRIES = 3
+SLEEP_BETWEEN_POSTS = 4
 
-
-# --- 💎 PERSONALIZACIÓN EXTRA ---
-# Nombre de la marca que aparece en los mensajes
-BRAND_NAME = "MALLY SERIES"
-
-# User de Telegram para créditos en el caption
-CHANNEL_USER = "@MallySeries"
+if not os.path.exists(TEMP_FOLDER):
+    os.makedirs(TEMP_FOLDER)
