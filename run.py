@@ -1,13 +1,9 @@
-import server, main, threading, config
-from flask import request
+import subprocess
+import os
 
-@server.app.route('/run', methods=['POST'])
-def handle():
-    t = request.form.get('titulo')
-    l = request.form.get('link')
-    threading.Thread(target=main.motor_principal, args=(l, t)).start()
-    return "<h1>🚀 Descarga iniciada...</h1><script>setTimeout(()=>window.location='/',2000)</script>"
+# Asegura que las carpetas existan antes de empezar
+os.makedirs("videos_galeria", exist_ok=True)
+os.makedirs("mally_studio_segments", exist_ok=True)
 
-if __name__ == "__main__":
-    print(f"🔥 Sistema Mally Pro en línea: http://localhost:{config.PORT}")
-    server.app.run(host='0.0.0.0', port=config.PORT)
+print("--- INICIANDO SISTEMA OPERATIVO MP ---")
+subprocess.run(["python", "main.py"])
