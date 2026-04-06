@@ -4,19 +4,17 @@ import server
 import bot_mally
 
 def loop_bot():
-    print("🚀 Motor Mally activado...")
+    print(">> Motor Noa activado...")
     while True:
         try:
             bot_mally.procesar_ciclo()
         except Exception as e:
-            print(f"Error: {e}")
+            print(f">> Alerta de Sistema: {e}")
         time.sleep(10)
 
 if __name__ == "__main__":
-    # Iniciar interfaz visual en hilo secundario
-    web_thread = threading.Thread(target=server.start_server)
-    web_thread.daemon = True
-    web_thread.start()
+    # Servidor de monitoreo visual
+    threading.Thread(target=server.start_server, daemon=True).start()
     
-    # Iniciar bot en hilo principal
+    # Motor de procesamiento
     loop_bot()
