@@ -4,4 +4,4 @@ CHAT_ID = "-1003584710096"
 
 TEMP_FOLDER = "mally_studio_segments"
 # Corte de 3 minutos (180 segundos)
-CLIP_DURATION = 180 
+CLIP_DURATION = 60
