@@ -24,9 +24,9 @@ class MallyLogger:
         return (
             f"🎬 <b>{self.nombre}</b>\n"
             f"🕹️ Capítulo: {n}/{self.total}\n"
-            f"🌋 Enviado\n"
+            f"🌋 Corta vídeo Automáticamente\n"
             f"📨 Enviado {n}\n"
-            f"🎉 Logrado\n"
+            f"🎉 Creador:Khassam.//Dev\n"
             f"✅ @MallySeries"
         )
 
