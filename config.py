@@ -4,4 +4,9 @@ CHAT_ID = "-1003584710096"
 
 # Directorios y Tiempos
 TEMP_FOLDER = "mally_studio_segments"
-CLIP_DURATION = 60 # 3 Minutos exactos
+CLIP_DURATION = 180  # 3 Minutos
+
+# Configuración de Marca de Agua
+WATERMARK_TEXT = "t.me/MallySeries"
+# Opacidad 0.4 = 40% transparente
+WATERMARK_COLOR = "white@0.4" 
