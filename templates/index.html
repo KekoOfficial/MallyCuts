@@ -3,30 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MALLY STUDIO PRO</title>
+    <title>MALLY SERIES • STUDIO</title>
     <style>
-        :root { --neon: #0f0; --accent: #f0f; --bg: #000; }
-        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { border: 2px solid var(--accent); padding: 30px; background: rgba(10,10,10,0.9); border-radius: 20px; box-shadow: 0 0 20px var(--accent); width: 350px; text-align: center; }
-        h1 { font-size: 1.5rem; text-shadow: 2px 2px var(--bg); color: var(--accent); margin-bottom: 20px; }
-        input, textarea { width: 100%; margin: 10px 0; padding: 12px; background: #111; border: 1px solid var(--neon); color: var(--neon); border-radius: 8px; box-sizing: border-box; }
-        .file-label { display: block; background: #222; padding: 10px; border: 1px dashed var(--neon); margin-top: 10px; cursor: pointer; font-size: 0.8rem; }
-        .btn { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 20px; text-transform: uppercase; }
-        .btn:hover { background: #d0d; box-shadow: 0 0 10px var(--accent); }
+        :root {
+            --neon-color: #00f2ff;
+            --bg-dark: #0a0a0a;
+            --card-bg: #151515;
+            --text-gray: #a0a0a0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: white;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 15px rgba(0, 242, 255, 0.1);
+            border: 1px solid #222;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            letter-spacing: 3px;
+            margin: 0;
+            color: var(--neon-color);
+            text-transform: uppercase;
+        }
+
+        .header p {
+            color: var(--text-gray);
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-gray);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            background: #202020;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            box-sizing: border-box;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input:focus, textarea:focus {
+            border-color: var(--neon-color);
+            box-shadow: 0 0 8px rgba(0, 242, 255, 0.2);
+        }
+
+        .file-upload {
+            position: relative;
+            background: #202020;
+            border: 2px dashed #333;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-bottom: 15px;
+        }
+
+        .file-upload:hover {
+            border-color: var(--neon-color);
+            background: #252525;
+        }
+
+        .file-upload input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-info {
+            font-size: 0.8rem;
+            color: var(--text-gray);
+        }
+
+        button {
+            width: 100%;
+            background: linear-gradient(45deg, #00c6ff, #0072ff);
+            border: none;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 5px 15px rgba(0, 114, 255, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 242, 255, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .footer-logo {
+            text-align: center;
+            margin-top: 25px;
+            opacity: 0.5;
+            font-size: 0.7rem;
+            letter-spacing: 5px;
+        }
+
+        /* Status de carga */
+        #status {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .loader {
+            border: 3px solid #333;
+            border-top: 3px solid var(--neon-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>MALLY SERIES STUDIO</h1>
-        <form action="/upload" method="post" enctype="multipart/form-data">
-            <input type="text" name="nombre" placeholder="NOMBRE DE LA SERIE" required>
-            <textarea name="descripcion" placeholder="RESEÑA / INFORMACIÓN" rows="3"></textarea>
-            
-            <label class="file-label">🖼️ SELECCIONAR PORTADA<input type="file" name="portada" accept="image/*" required style="display:none;"></label>
-            <label class="file-label">🎬 SELECCIONAR VIDEO<input type="file" name="video" accept="video/*" required style="display:none;"></label>
-            
-            <button type="submit" class="btn">INICIAR PRODUCCIÓN</button>
-        </form>
+
+<div class="container">
+    <div class="header">
+        <h1>MALLY SERIES</h1>
+        <p>CONTROL DE PRODUCCIÓN • IMPERIO MP</p>
     </div>
+
+    <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
+        <div class="form-group">
+            <label>Título de la Obra</label>
+            <input type="text" name="nombre" placeholder="EJ: AVENGERS ENDGAME" required>
+        </div>
+
+        <div class="form-group">
+            <label>Reseña / Descripción</label>
+            <textarea name="descripcion" rows="3" placeholder="Escribe una breve sinopsis..." required></textarea>
+        </div>
+
+        <label>Archivos de Origen</label>
+        <div class="file-upload">
+            <span class="file-info" id="portadaName">🖼️ SELECCIONAR PORTADA (JPG)</span>
+            <input type="file" name="portada" accept="image/*" required onchange="updateFileName(this, 'portadaName')">
+        </div>
+
+        <div class="file-upload">
+            <span class="file-info" id="videoName">🎥 SELECCIONAR VIDEO (MP4)</span>
+            <input type="file" name="video" accept="video/*" required onchange="updateFileName(this, 'videoName')">
+        </div>
+
+        <button type="submit" id="btnSubmit">INICIAR PRODUCCIÓN</button>
+    </form>
+
+    <div id="status">
+        <div class="loader"></div>
+        <p style="font-size: 0.8rem; color: var(--neon-color);">SUBIENDO AL SERVIDOR Y SINCRONIZANDO CEREBROS...</p>
+    </div>
+
+    <div class="footer-logo">IMPERIO MP</div>
+</div>
+
+<script>
+    function updateFileName(input, elementId) {
+        const fileName = input.files[0].name;
+        document.getElementById(elementId).innerText = "✅ " + fileName;
+    }
+
+    document.getElementById('uploadForm').onsubmit = function() {
+        document.getElementById('uploadForm').style.display = 'none';
+        document.getElementById('status').style.display = 'block';
+    };
+</script>
+
 </body>
 </html>
