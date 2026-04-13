@@ -10,7 +10,7 @@ class MallyLogger:
         return (f"🎬 <b>MALLY SERIES PRESENTA:</b>\n"
                 f"🍿 <b>{self.nombre}</b>\n\n"
                 f"📝 {descripcion}\n"
-                f"⚙️ <i>Iniciando cortes de 3 minutos...</i>\n"
+                f"⚙️ <i>Iniciando cortes de 60 Segundos...</i>\n"
                 f"⚡ @MallySeries")
 
     def exito(self, n):
