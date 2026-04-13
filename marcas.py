@@ -2,14 +2,20 @@ import subprocess
 import config
 
 def aplicar_marca_agua(path_input, n):
-    """Aplica el branding de Mally Series al clip extraído"""
     path_output = f"{config.TEMP_FOLDER}/cap_{n:03d}.mp4"
     
-    comando = [
+    # Fórmulas de centrado: (w-tw)/2 y (h-th)/2
+    filtro = (f"drawtext=text='{config.WATERMARK_TEXT}':"
+              f"x=(w-tw)/2:y=(h-th)/2:"
+              f"fontcolor={config.WATERMARK_COLOR}:"
+              f"fontsize={config.WATERMARK_SIZE}")
+    
+    cmd = [
         'ffmpeg', '-y', '-i', path_input,
-        '-vf', f"drawtext=text='{config.WATERMARK_TEXT}':x=w-tw-20:y=h-th-20:fontcolor={config.WATERMARK_COLOR}:fontsize=24",
-        '-c:v', 'libx264', '-preset', 'superfast', '-crf', '28', 
-        '-threads', '4', '-c:a', 'copy', path_output
+        '-vf', filtro,
+        '-c:v', 'libx264', '-preset', 'superfast', '-crf', '26', 
+        '-threads', '0', # '0' usa todos los núcleos disponibles automáticamente
+        '-c:a', 'copy', path_output
     ]
-    subprocess.run(comando, check=True, capture_output=True)
+    subprocess.run(cmd, check=True, capture_output=True)
     return path_output
