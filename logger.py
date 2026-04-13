@@ -29,4 +29,4 @@ class MallyLogger:
         return (f"🏁 <b>DISTRIBUCIÓN COMPLETADA</b>\n"
                 f"📊 <b>Partes:</b> {self.total}\n"
                 f"⏱️ <b>Tiempo:</b> {m}m {s}s\n"
-                f"👑 <b>IMPERIO MP</b>")
+                f"👑 <b>Umbrae Studio</b>")
