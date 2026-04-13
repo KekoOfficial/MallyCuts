@@ -4,36 +4,31 @@ import config, logger, cortes, marcas, enviar
 
 app = Flask(__name__)
 
-def motor_imperial_cascada(p_vid, p_port, nombre, desc):
-    os.makedirs(config.TEMP_FOLDER, exist_ok=True)
+def motor_cascada_pro(p_vid, p_port, nombre, desc):
+    if not os.path.exists(config.TEMP_FOLDER): os.makedirs(config.TEMP_FOLDER)
     
-    # 1. Obtener total de clips
     res = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', p_vid], capture_output=True, text=True)
     total = int(float(res.stdout) // config.CLIP_DURATION) + 1
     mally_log = logger.MallyLogger(nombre, total)
 
-    # 2. Enviar Portada (Prioridad de entrada)
+    # Portada
     with open(p_port, 'rb') as img:
         enviar.bot.send_photo(config.CHAT_ID, img, caption=mally_log.portada_msg(desc), parse_mode="HTML")
     os.remove(p_port)
 
-    # 3. Ciclo de Producción Cascada
+    # Flujo Serializado (Garantiza Orden 1, 2, 3...)
     for n in range(1, total + 1):
-        print(f"⚙️ {mally_log.cortando(n)}")
+        print(mally_log.cortando(n))
         
-        # Flujo: Cortar -> Editar -> Enviar
-        tmp_raw = cortes.extraer_segmento(p_vid, n)
-        tmp_final = marcas.aplicar_marca_agua(tmp_raw, n)
+        raw = cortes.extraer_segmento(p_vid, n)
+        final = marcas.aplicar_marca_agua(raw, n)
         
-        enviar.despachar_a_telegram(tmp_final, mally_log.exito(n))
+        # El proceso se detiene aquí hasta que el envío sea exitoso
+        enviar.despachar_a_telegram(final, mally_log.exito(n))
         
-        # Eliminar el raw sobrante
-        if os.path.exists(tmp_raw): os.remove(tmp_raw)
-        
-        # Breve pausa anti-spam para Telegram
-        time.sleep(1.5)
+        if os.path.exists(raw): os.remove(raw)
+        time.sleep(1) # Pausa técnica
 
-    # Finalización
     if os.path.exists(p_vid): os.remove(p_vid)
     enviar.bot.send_message(config.CHAT_ID, mally_log.final(), parse_mode="HTML")
 
@@ -47,8 +42,8 @@ def upload():
     request.files['video'].save(p_vid)
     request.files['portada'].save(p_port)
     
-    threading.Thread(target=motor_imperial_cascada, args=(p_vid, p_port, n, d)).start()
-    return "<h1>🚀 Producción en Cascada Activa</h1><p>Los clips llegarán ordenados a @MallySeries</p>"
+    threading.Thread(target=motor_cascada_pro, args=(p_vid, p_port, n, d)).start()
+    return "<h1>🚀 Producción Multinúcleo Iniciada</h1>"
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080)
