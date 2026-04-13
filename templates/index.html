@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MALLY STUDIO PRO</title>
+    <style>
+        :root { --neon: #0f0; --accent: #f0f; --bg: #000; }
+        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { border: 2px solid var(--accent); padding: 30px; background: rgba(10,10,10,0.9); border-radius: 20px; box-shadow: 0 0 20px var(--accent); width: 350px; text-align: center; }
+        h1 { font-size: 1.5rem; text-shadow: 2px 2px var(--bg); color: var(--accent); margin-bottom: 20px; }
+        input, textarea { width: 100%; margin: 10px 0; padding: 12px; background: #111; border: 1px solid var(--neon); color: var(--neon); border-radius: 8px; box-sizing: border-box; }
+        .file-label { display: block; background: #222; padding: 10px; border: 1px dashed var(--neon); margin-top: 10px; cursor: pointer; font-size: 0.8rem; }
+        .btn { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 20px; text-transform: uppercase; }
+        .btn:hover { background: #d0d; box-shadow: 0 0 10px var(--accent); }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>MALLY SERIES STUDIO</h1>
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <input type="text" name="nombre" placeholder="NOMBRE DE LA SERIE" required>
+            <textarea name="descripcion" placeholder="RESEÑA / INFORMACIÓN" rows="3"></textarea>
+            
+            <label class="file-label">🖼️ SELECCIONAR PORTADA<input type="file" name="portada" accept="image/*" required style="display:none;"></label>
+            <label class="file-label">🎬 SELECCIONAR VIDEO<input type="file" name="video" accept="video/*" required style="display:none;"></label>
+            
+            <button type="submit" class="btn">INICIAR PRODUCCIÓN</button>
+        </form>
+    </div>
+</body>
+</html>
