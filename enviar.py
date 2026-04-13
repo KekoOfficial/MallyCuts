@@ -3,33 +3,42 @@ import config
 import time
 import os
 
+# Usamos BOT_TOKEN que ya está definido en tu config
 bot = telebot.TeleBot(config.BOT_TOKEN)
 
 def despachar_a_telegram(path_archivo, mensaje):
-    """
-    Envía el video a Telegram con sistema de reintentos.
-    """
-    max_intentos = 3
-    for intento in range(1, max_intentos + 1):
+    """Envío con reintentos y soporte de streaming"""
+    for intento in range(1, config.MAX_RETRIES + 1):
         try:
+            if not os.path.exists(path_archivo):
+                print(f"❌ Error: {path_archivo} no encontrado.")
+                return False
+
             with open(path_archivo, 'rb') as video:
                 bot.send_video(
                     config.CHAT_ID, 
                     video, 
                     caption=mensaje, 
                     parse_mode="HTML",
-                    timeout=120 # Aumentamos tiempo de espera para archivos grandes
+                    timeout=config.TIMEOUT_SEND,
+                    supports_streaming=True
                 )
-            return True # Éxito total
+            return True
             
         except Exception as e:
-            print(f"⚠️ Intento {intento} fallido para {path_archivo}: {e}")
-            if "Too Large" in str(e):
-                print("🛑 Archivo excede límites de Telegram. Saltando...")
+            err = str(e)
+            if "413" in err or "Too Large" in err:
+                print(f"🛑 CAPÍTULO PESADO: {path_archivo} excede el límite. Saltando...")
                 return False
             
-            if intento < max_intentos:
-                time.sleep(10) # Espera 10 segundos antes de reintentar
+            print(f"⚠️ Intento {intento} fallido: {err}")
+            if intento < config.MAX_RETRIES:
+                time.sleep(10 * intento)
             else:
-                print(f"❌ Imposible enviar {path_archivo} tras {max_intentos} intentos.")
                 return False
+
+def enviar_mensaje_final(texto):
+    try:
+        bot.send_message(config.CHAT_ID, texto, parse_mode="HTML")
+    except:
+        pass
