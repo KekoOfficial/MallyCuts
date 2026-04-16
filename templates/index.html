@@ -3,168 +3,236 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MALLY SERIES • STUDIO</title>
+    <title>MALLY SERIES • UMBRAE STUDIO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --neon-color: #00f2ff;
-            --bg-dark: #0a0a0a;
-            --card-bg: #151515;
-            --text-gray: #a0a0a0;
+            --neon-glow: rgba(0, 242, 255, 0.5);
+            --bg-dark: #050505;
+            --card-bg: rgba(20, 20, 20, 0.95);
+            --input-bg: #121212;
+            --text-gray: #888;
+            --accent-gradient: linear-gradient(90deg, #00f2ff, #0072ff);
         }
+
+        * { box-sizing: border-box; }
 
         body {
             background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 242, 255, 0.05) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(0, 114, 255, 0.05) 0%, transparent 20%);
             color: white;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Rajdhani', sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            padding: 20px;
+            overflow-x: hidden;
         }
 
         .container {
             width: 100%;
-            max-width: 450px;
+            max-width: 480px;
             background: var(--card-bg);
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 15px rgba(0, 242, 255, 0.1);
-            border: 1px solid #222;
+            padding: 40px;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            position: relative;
+        }
+
+        /* Línea superior decorativa */
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 20%; right: 20%;
+            height: 2px;
+            background: var(--accent-gradient);
+            box-shadow: 0 0 10px var(--neon-color);
         }
 
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 35px;
         }
 
         .header h1 {
-            font-size: 1.5rem;
-            letter-spacing: 3px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            letter-spacing: 5px;
             margin: 0;
-            color: var(--neon-color);
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             text-transform: uppercase;
         }
 
         .header p {
             color: var(--text-gray);
-            font-size: 0.8rem;
-            margin-top: 5px;
+            font-size: 0.85rem;
+            letter-spacing: 2px;
+            margin-top: 8px;
+            font-weight: 300;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
 
         label {
-            display: block;
+            display: flex;
+            align-items: center;
             font-size: 0.75rem;
-            color: var(--text-gray);
-            margin-bottom: 8px;
+            color: var(--neon-color);
+            margin-bottom: 10px;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 1.5px;
+            font-weight: 700;
         }
 
         input[type="text"], textarea {
             width: 100%;
-            background: #202020;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 12px;
-            color: white;
-            box-sizing: border-box;
+            background: var(--input-bg);
+            border: 1px solid #222;
+            border-radius: 12px;
+            padding: 14px;
+            color: #eee;
+            font-family: inherit;
+            font-size: 1rem;
             outline: none;
-            transition: 0.3s;
+            transition: all 0.3s ease;
         }
 
         input:focus, textarea:focus {
             border-color: var(--neon-color);
-            box-shadow: 0 0 8px rgba(0, 242, 255, 0.2);
+            background: #181818;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.1);
+        }
+
+        .file-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
         }
 
         .file-upload {
             position: relative;
-            background: #202020;
-            border: 2px dashed #333;
-            border-radius: 10px;
-            padding: 15px;
+            background: #151515;
+            border: 1px dashed #333;
+            border-radius: 12px;
+            padding: 20px 10px;
             text-align: center;
             cursor: pointer;
             transition: 0.3s;
-            margin-bottom: 15px;
         }
 
         .file-upload:hover {
             border-color: var(--neon-color);
-            background: #252525;
+            background: rgba(0, 242, 255, 0.02);
         }
 
         .file-upload input[type="file"] {
             position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
+            width: 100%; height: 100%;
+            top: 0; left: 0;
             opacity: 0;
             cursor: pointer;
         }
 
         .file-info {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: var(--text-gray);
+            display: block;
+            margin-top: 5px;
+        }
+
+        .file-icon {
+            font-size: 1.2rem;
+            margin-bottom: 8px;
+            display: block;
         }
 
         button {
             width: 100%;
-            background: linear-gradient(45deg, #00c6ff, #0072ff);
+            background: var(--accent-gradient);
             border: none;
             color: white;
-            padding: 15px;
-            border-radius: 10px;
+            padding: 18px;
+            border-radius: 12px;
+            font-family: 'Orbitron', sans-serif;
             font-weight: bold;
+            font-size: 0.9rem;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
             cursor: pointer;
-            transition: 0.3s;
-            box-shadow: 0 5px 15px rgba(0, 114, 255, 0.3);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 20px rgba(0, 114, 255, 0.2);
         }
 
         button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 242, 255, 0.4);
-        }
-
-        button:active {
-            transform: translateY(0);
+            transform: scale(1.02);
+            box-shadow: 0 0 25px var(--neon-glow);
         }
 
         .footer-logo {
             text-align: center;
-            margin-top: 25px;
-            opacity: 0.5;
+            margin-top: 30px;
+            color: var(--text-gray);
             font-size: 0.7rem;
-            letter-spacing: 5px;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            font-family: 'Orbitron', sans-serif;
         }
 
-        /* Status de carga */
+        /* Status & Animations */
         #status {
             display: none;
             text-align: center;
-            margin-top: 20px;
+            padding: 20px 0;
+        }
+
+        .loader-container {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 20px;
         }
 
         .loader {
-            border: 3px solid #333;
-            border-top: 3px solid var(--neon-color);
+            border: 2px solid transparent;
+            border-top: 2px solid var(--neon-color);
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
+            width: 100%; height: 100%;
             animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+        }
+
+        .loader-pulse {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--neon-glow);
+            border-radius: 50%;
+            animation: pulse 1.5s ease-out infinite;
+            z-index: -1;
         }
 
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0% { transform: scale(1); opacity: 0.5; } 100% { transform: scale(1.5); opacity: 0; } }
+
+        .loading-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            color: var(--neon-color);
+            letter-spacing: 2px;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
@@ -172,46 +240,57 @@
 <div class="container">
     <div class="header">
         <h1>MALLY SERIES</h1>
-        <p>CONTROL DE PRODUCCIÓN</p>
+        <p>UMBRAE STUDIO • CORE V2</p>
     </div>
 
     <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
         <div class="form-group">
-            <label>Título de la Obra</label>
-            <input type="text" name="nombre" placeholder="EJ: AVENGERS ENDGAME" required>
+            <label><span>◈</span> Título del Proyecto</label>
+            <input type="text" name="nombre" placeholder="EJ: EL IMPERIO CONTRAATACA" required>
         </div>
 
         <div class="form-group">
-            <label>Reseña / Descripción</label>
-            <textarea name="descripcion" rows="3" placeholder="Escribe una breve sinopsis..." required></textarea>
+            <label><span>◈</span> Sinopsis Ejecutiva</label>
+            <textarea name="descripcion" rows="3" placeholder="Escribe los detalles de la obra..." required></textarea>
         </div>
 
-        <label>Archivos de Origen</label>
-        <div class="file-upload">
-            <span class="file-info" id="portadaName">🖼️ SELECCIONAR PORTADA (JPG)</span>
-            <input type="file" name="portada" accept="image/*" required onchange="updateFileName(this, 'portadaName')">
+        <label><span>◈</span> Assets del Sistema</label>
+        <div class="file-grid">
+            <div class="file-upload" id="drop-portada">
+                <span class="file-icon">🖼️</span>
+                <span class="file-info" id="portadaName">PORTADA JPG</span>
+                <input type="file" name="portada" accept="image/*" required onchange="updateFileName(this, 'portadaName')">
+            </div>
+
+            <div class="file-upload" id="drop-video">
+                <span class="file-icon">🎥</span>
+                <span class="file-info" id="videoName">MASTER MP4</span>
+                <input type="file" name="video" accept="video/*" required onchange="updateFileName(this, 'videoName')">
+            </div>
         </div>
 
-        <div class="file-upload">
-            <span class="file-info" id="videoName">🎥 SELECCIONAR VIDEO (MP4)</span>
-            <input type="file" name="video" accept="video/*" required onchange="updateFileName(this, 'videoName')">
-        </div>
-
-        <button type="submit" id="btnSubmit">INICIAR PRODUCCIÓN</button>
+        <button type="submit" id="btnSubmit">DESPLEGAR PRODUCCIÓN</button>
     </form>
 
     <div id="status">
-        <div class="loader"></div>
-        <p style="font-size: 0.8rem; color: var(--neon-color);">SUBIENDO AL SERVIDOR Y SINCRONIZANDO CEREBROS...</p>
+        <div class="loader-container">
+            <div class="loader"></div>
+            <div class="loader-pulse"></div>
+        </div>
+        <p class="loading-text">SINCRONIZANDO CON EL SERVIDOR...</p>
     </div>
 
-    <div class="footer-logo">Umbrae Studio</div>
+    <div class="footer-logo">UMBRAE STUDIO</div>
 </div>
 
 <script>
     function updateFileName(input, elementId) {
-        const fileName = input.files[0].name;
-        document.getElementById(elementId).innerText = "✅ " + fileName;
+        if (input.files && input.files[0]) {
+            const fileName = input.files[0].name;
+            const shortName = fileName.length > 15 ? fileName.substring(0, 12) + "..." : fileName;
+            document.getElementById(elementId).innerText = "✅ " + shortName;
+            document.getElementById(elementId).style.color = "#00f2ff";
+        }
     }
 
     document.getElementById('uploadForm').onsubmit = function() {
