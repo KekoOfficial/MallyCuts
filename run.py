@@ -1,44 +1,41 @@
 import os
 import threading
 import time
-import signal
-import sys
+import subprocess
 from flask import Flask, render_template, request, jsonify
 import main
 
-# --- AUTO-LIMPIEZA DE PUERTOS ---
-def kill_port(port):
-    """Mata cualquier proceso que esté bloqueando el puerto antes de iniciar."""
+# --- MOTOR DE LIBERACIÓN DE INFRAESTRUCTURA ---
+def force_kill_port(port):
+    """Fuerza el cierre de cualquier proceso en el puerto usando lsof."""
     try:
-        # Comando para Termux/Linux que identifica y mata el proceso en el puerto
-        os.system(f"fuser -k {port}/tcp > /dev/null 2>&1")
-    except:
+        # Buscamos el PID que usa el puerto y lo matamos con SIGKILL
+        pid = subprocess.check_output(["lsof", "-t", f"-i:{port}"]).decode().strip()
+        if pid:
+            os.system(f"kill -9 {pid}")
+            print(f"⚡ Proceso fantasma {pid} eliminado en puerto {port}.")
+    except Exception:
         pass
 
-# --- VALIDACIÓN DE INFRAESTRUCTURA ---
+# --- VALIDACIÓN DE INTEGRIDAD ---
 try:
     import config
-    if not hasattr(config, 'BOT_TOKEN') or not hasattr(config, 'CHAT_ID'):
-        raise AttributeError
-except (ImportError, AttributeError):
-    print("❌ Error: Estructura de config.py inválida.")
+except ImportError:
+    print("❌ Error: No se detectó config.py.")
     exit(1)
 
 app = Flask(__name__)
 
-# Asegurar directorios esenciales
+# Asegurar persistencia de directorios
 for folder in [config.TEMP_FOLDER, 'static', 'templates']:
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    os.makedirs(folder, exist_ok=True)
 
 @app.route('/')
 def index():
-    """Portal MallyCuts V3.1"""
     return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    """Motor de procesamiento en segundo plano"""
     try:
         nombre = request.form.get('nombre', 'Mally Project')
         desc = request.form.get('descripcion', 'Sin descripción.')
@@ -55,7 +52,6 @@ def upload():
         video.save(p_vid)
         portada.save(p_port)
         
-        # Lanzamiento del motor imperial
         threading.Thread(
             target=main.motor_mallycuts_express, 
             args=(p_vid, p_port, nombre, desc),
@@ -63,11 +59,10 @@ def upload():
         ).start()
         
         return f"""
-        <body style="background:#050505; color:#bc00ff; font-family:monospace; padding:40px; text-align:center;">
+        <body style="background:#020202; color:#bc00ff; font-family:monospace; padding:40px; text-align:center;">
             <h1 style="letter-spacing:5px;">🚀 DESPLIEGUE INICIADO</h1>
-            <hr border="1" color="#bc00ff" style="opacity:0.3;">
-            <p style="color:#eee;">El proyecto <b>{nombre}</b> está siendo procesado.</p>
-            <p style="color:#555;">Checkea la terminal de Termux para ver el progreso.</p>
+            <hr border="1" color="#bc00ff" style="opacity:0.2;">
+            <p style="color:#eee;">Procesando: <b>{nombre}</b></p>
             <br>
             <a href="/" style="color:#00f2ff; text-decoration:none; border:1px solid #00f2ff; padding:10px 20px; border-radius:10px;">[ VOLVER AL PANEL ]</a>
         </body>
@@ -76,20 +71,18 @@ def upload():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
-    PORT = 8080
+    # Cambiamos al puerto 8081 para evitar conflictos con servicios de Android/Termux
+    TARGET_PORT = 8081 
     os.system('clear')
     print("==========================================")
-    print("   UMBRAE STUDIO - MALLY SERIES V3.1      ")
+    print("   UMBRAE STUDIO - MALLY SERIES V3.2      ")
     print("==========================================")
     
-    # Limpiamos el puerto antes de arrancar
-    print(f"📡 Liberando puerto {PORT}...")
-    kill_port(PORT)
-    time.sleep(1) # Breve pausa para asegurar la liberación
+    force_kill_port(TARGET_PORT)
+    time.sleep(0.5)
     
-    print(f"🛰️  Servidor activo en: http://0.0.0.0:{PORT}")
-    print(f"📂 Carpeta temporal: {config.TEMP_FOLDER}")
-    print(f"🖼️  Logo detectado: /static/logo_umbrae.png")
+    print(f"🛰️  Panel: http://0.0.0.0:{TARGET_PORT}")
+    print(f"🎬 Engine: Umbrae Core V3.2")
     print("==========================================")
     
-    app.run(host='0.0.0.0', port=PORT, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=TARGET_PORT, debug=False, threaded=True)
