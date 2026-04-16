@@ -4,76 +4,78 @@ import time
 import config
 import telebot
 
-# Inicialización del Bot Imperial
+# Conexión con el Bot de Telegram
 bot = telebot.TeleBot(config.BOT_TOKEN)
 
 def motor_mallycuts_express(video_path, portada_path, nombre, descripcion):
     """
-    Motor principal: Corta videos e inyecta la portada en el frame inicial 
-    de cada segmento para automatización total en TikTok/Reels.
+    Motor V4.5: Envía kit de prensa primero, luego clips con miniatura invisible.
     """
     try:
         print(f"\n[🚀] INICIANDO DESPLIEGUE: {nombre}")
         
-        # 1. Obtener duración total del video
+        # --- PASO 1: ENVIAR PORTADA Y TÍTULOS PRIMERO ---
+        # Esto sirve para que en Telegram veas primero de qué trata el proyecto.
+        with open(portada_path, 'rb') as p:
+            mensaje_principal = (
+                f"🗂️ **NUEVO PROYECTO: {nombre}**\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"📝 **DESCRIPCIÓN:**\n{descripcion}\n\n"
+                f"👑 **Creador:** Noa | Umbrae Studio\n"
+                f"📅 **Fecha:** {time.strftime('%d/%m/%Y')}"
+            )
+            bot.send_photo(config.CHAT_ID, p, caption=mensaje_principal, parse_mode='Markdown')
+        
+        # --- PASO 2: ANÁLISIS DE VIDEO ---
         probe = ffmpeg.probe(video_path)
         duration = float(probe['format']['duration'])
-        
-        # 2. Configurar tiempos (60s por clip según tu estándar)
         clip_duration = 60 
         total_clips = int(duration // clip_duration) + (1 if duration % clip_duration > 0 else 0)
-        
-        print(f"[📊] Total a procesar: {total_clips} clips de {clip_duration}s")
 
+        # --- PASO 3: PROCESAMIENTO DE CLIPS ---
         for i in range(total_clips):
             start_time = i * clip_duration
             output_name = f"Clip_{i+1}_{nombre.replace(' ', '_')}.mp4"
             output_path = os.path.join(config.TEMP_FOLDER, output_name)
             
-            print(f"[🎬] Procesando Clip {i+1}/{total_clips}...")
+            print(f"[🎬] Creando Clip {i+1}/{total_clips}...")
 
-            # --- LÓGICA DE INYECCIÓN DE PORTADA (EL TRUCO TIKTOK) ---
-            # Tomamos el video y la portada
+            # Definimos las entradas
             input_video = ffmpeg.input(video_path, ss=start_time, t=clip_duration)
-            input_cover = ffmpeg.input(portada_path)
+            # Escalamos la portada al formato estándar de TikTok (1080x1920)
+            input_cover = ffmpeg.input(portada_path).filter('scale', 1080, 1920)
 
-            # Overlay: La portada se pone encima solo durante los primeros 0.2 segundos
-            # Esto engaña al algoritmo de TikTok para usarla como miniatura
-            video_with_cover = ffmpeg.overlay(
+            # Inyectamos la portada solo 0.05 segundos (invisible pero detectable por TikTok)
+            video_final = ffmpeg.overlay(
                 input_video, 
                 input_cover, 
-                enable='between(t,0,0.2)'
+                enable='between(t,0,0.05)'
             )
 
-            # Renderizado Ultra-Rápido para Termux
-            try:
-                (
-                    ffmpeg
-                    .output(video_with_cover, input_video.audio, output_path, 
-                            vcodec='libx264', preset='ultrafast', acodec='copy')
-                    .overwrite_output()
-                    .run(quiet=True)
-                )
-            except ffmpeg.Error as e:
-                print(f"[❌] Error en FFmpeg: {e}")
-                continue
+            # Renderizado Ultra-Rápido
+            (
+                ffmpeg
+                .output(video_final, input_video.audio, output_path, 
+                        vcodec='libx264', preset='ultrafast', acodec='copy')
+                .overwrite_output()
+                .run(quiet=True)
+            )
 
-            # 3. Envío Automático a Telegram
+            # --- PASO 4: ENVIAR CLIPS ---
             with open(output_path, 'rb') as v:
-                caption = f"🎬 {nombre} - Parte {i+1}\n\n📝 {descripcion}\n\n👑 Creador: Noa | Umbrae Studio"
-                bot.send_video(config.CHAT_ID, v, caption=caption, supports_streaming=True)
+                caption_clip = f"🎬 {nombre} - Parte {i+1}\n🚀 Listo para publicar"
+                bot.send_video(config.CHAT_ID, v, caption=caption_clip, supports_streaming=True)
             
-            print(f"[✅] Clip {i+1} enviado exitosamente.")
-            
-            # Limpieza de residuo para no llenar el Xiaomi
+            # Limpieza inmediata de clip enviado
             if os.path.exists(output_path):
                 os.remove(output_path)
 
-        # Limpieza de archivos originales tras procesar todo
-        os.remove(video_path)
-        os.remove(portada_path)
-        print(f"\n[👑] MISIÓN CUMPLIDA: {nombre} desplegado al 100%.")
+        # --- PASO 5: LIMPIEZA FINAL ---
+        if os.path.exists(video_path): os.remove(video_path)
+        if os.path.exists(portada_path): os.remove(portada_path)
+        
+        print(f"\n[✅] TODO ENVIADO: {nombre} ya está en Telegram.")
 
     except Exception as e:
-        print(f"[🔥] ERROR CRÍTICO EN EL MOTOR: {str(e)}")
+        print(f"[🔥] ERROR EN EL MOTOR: {str(e)}")
 
