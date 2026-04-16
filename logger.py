@@ -1,32 +1,29 @@
-import time
+# logger.py - El Cerebro de Mally Series
+import datetime
 
 class MallyLogger:
-    def __init__(self, nombre, total):
-        self.nombre = nombre.strip().upper()
-        self.total = total
-        self.inicio = time.time()
-
-    def portada_msg(self, desc):
-        return (f"💎 <b>MALLY SERIES • PREMIUM</b>\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"🎬 <b>PRODUCCIÓN:</b> {self.nombre}\n"
-                f"📝 <b>RESEÑA:</b> {desc}\n"
-                f"📦 <b>CAPÍTULOS:</b> {self.total}\n"
-                f"━━━━━━━━━━━━━━━━━━\n"
-                f"🛰️ <i>Procesando en alta prioridad...</i>")
-
-    def cortando(self, n):
-        return f"⚡ [MODO IMPERIO] Renderizando bloque {n}/{self.total}"
+    def __init__(self, nombre_serie, total_caps):
+        self.nombre = nombre_serie
+        self.total = total_caps
+        self.inicio = datetime.datetime.now()
 
     def exito(self, n):
-        return (f"🎬 <b>{self.nombre}</b>\n"
-                f"💎 <b>CAPÍTULO:</b> {n} / {self.total}\n"
-                f"✅ <i>Contenido Verificado</i>\n"
-                f"🔗 @MallySeries")
+        """Genera el caption para cada video enviado"""
+        return (
+            f"🎬 <b>{self.nombre}</b>\n"
+            f"🔹 Capítulo: {n} / {self.total}\n\n"
+            f"✨ Disfruta en @MallySeries\n"
+            f"⚡ <i>Calidad Premium Imperio MP</i>"
+        )
 
     def final(self):
-        m, s = divmod(int(time.time() - self.inicio), 60)
-        return (f"🏁 <b>DISTRIBUCIÓN COMPLETADA</b>\n"
-                f"📊 <b>Partes:</b> {self.total}\n"
-                f"⏱️ <b>Tiempo:</b> {m}m {s}s\n"
-                f"👑 <b>Umbrae Studio</b>")
+        """Genera el reporte de cierre para el canal"""
+        fin = datetime.datetime.now()
+        duracion = fin - self.inicio
+        return (
+            f"👑 <b>MISIÓN COMPLETADA</b> 👑\n\n"
+            f"🎥 Serie: {self.nombre}\n"
+            f"📦 Capítulos subidos: {self.total}\n"
+            f"⏱️ Tiempo total: {str(duracion).split('.')[0]}\n\n"
+            f"✅ Todos los archivos procesados y sincronizados."
+        )
