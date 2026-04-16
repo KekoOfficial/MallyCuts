@@ -6,17 +6,23 @@ import threading
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 import telebot
+# Nuevas librerías para la lógica de cortes (antiguo cortes.py)
+from moviepy.editor import VideoFileClip
 
 # ==========================================
-#   UMBRAE STUDIO - NÚCLEO SINCRONIZADO V3.0
+#   UMBRAE STUDIO - NÚCLEO SINCRONIZADO V3.1
 #   (Configuración de Infraestructura Core)
 # ==========================================
 
 # Identidad del Bot y Destino Oficial (Mally Series)
-# Sustituye con tu token real
 BOT_TOKEN = "8759783698:AAFUuC67X--qXoqD4D2YQ7RYlPlHoQmoYlU"
-# Asegúrate de que el bot sea ADMIN en este canal
-CHAT_ID = "-1003584710096" 
+# Canal/Grupo Mally Series (donde van las series completas)
+CHAT_ID_CANAL = "-1003584710096" 
+
+# --- CORRECCIÓN DE PRIVACIDAD: TU ID PERSONAL ---
+# Pon aquí tu ID personal de Telegram (ej: "8630490789")
+# Para que el Bot te notifique solo a ti en privado.
+ADMIN_PERSONAL_ID = "TU_ID_PERSONAL_AQUÍ" 
 
 # Branding Oficial & Distribución
 TG_OFFICIAL = "t.me/MallySeries"
@@ -29,7 +35,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PRODUCTION_FOLDER = os.path.join(BASE_DIR, "mally_studio_segments") 
 os.makedirs(PRODUCTION_FOLDER, exist_ok=True)
 
-# Renderizado de Video (Optimización para móvil en Paraguay)
+# Parámetros de Video (Optimización para móvil en Paraguay)
 VIDEO_CODEC = "libx264"
 PRESET_SPEED = "ultrafast"  # Velocidad máxima para el CPU de Termux
 CRF_QUALITY = "23"          # Balance premium entre peso y nitidez
@@ -37,7 +43,12 @@ VIDEO_BITRATE = "2500k"     # Bitrate estable para subida local
 AUDIO_CODEC = "aac"
 AUDIO_BITRATE = "128k"
 
-# Estética & Marca de Agua (Branding Style)
+# --- MÓDULO: CORTES LOCAL (lógica cortes.py) ---
+# Número de segmentos automáticos al subir un video (ej: 2)
+# El sistema dividirá el video original en esta cantidad de partes iguales.
+NUM_SEGMENTS_AUTOCUT = 2 
+
+# Estética & Marca de Agua (lógica marcas.py)
 WATERMARK_TEXT = f"TG: MallySeries | TT: EscenaDe15"
 WATERMARK_COLOR = "white@0.4" # Look translúcido profesional
 WATERMARK_SIZE = 28           # Tamaño balanceado para móvil
@@ -47,7 +58,7 @@ SHADOW_OPACITY = 0.6          # Sombra para lectura en escenas claras
 MAX_RETRIES = 7               # Aumentado para zonas de baja señal
 TIMEOUT_SEND = 600            # 10 min de espera para archivos pesados
 MAX_CONCURRENT_JOBS = 1       # Protección térmica ESTRICTA para Termux (1 renderizado a la vez)
-MAX_UPLOAD_SIZE_MB = 500      # Límite de subida para la Web Local
+MAX_UPLOAD_SIZE_MB = 1024     # Límite de subida (1GB) para Web Local (Puerto 8080)
 PAUSA_ENTRE_CAPS = 3          # Evita FloodWait de Telegram (lógica cortes.py)
 
 # Logging y Debug (lógica logger.py)
@@ -80,105 +91,131 @@ def log_imperial(mensaje):
         f.write(log_entry)
 
 # ==========================================
-#   MÓDULO: PROCESAMIENTO DE MEDIA (FFmpeg + lógica marcas.py + cortes.py)
+#   MÓDULO: PROCESAMIENTO DE MEDIA (lógica marcas.py + cortes.py)
 # ==========================================
 
 def procesar_video_imperial(video_path, portada_path, nombre_serie, descripcion):
     """
-    HILO SEPARADO: Aplica marca de agua, optimiza y envía a Telegram.
+    HILO SEPARADO: Corta el video, aplica marca de agua, optimiza y envía a Telegram.
     Protege el procesador de Termux usando un semáforo.
     """
     with job_semaphore: # Asegura que solo corra un renderizado a la vez
-        log_imperial(f"🛠️ [PROCESO] Iniciando producción maestra de: {nombre_serie}...")
-        
-        filename = os.path.basename(video_path)
-        # Nombres de archivo limpios y seguros (secure_filename ya aplicado en /upload)
-        output_filename = f"PROCESADO_{filename}"
-        output_path = os.path.join(PRODUCTION_FOLDER, output_filename)
-        
-        # --- COMANDO FFMPEG IMPERIAL (Marca de Agua + Optimización) ---
-        # Filtrodrawtext complejo para marca de agua con sombra
-        filter_complex = (
-            f"drawtext=text='{WATERMARK_TEXT}':x=10:y=H-th-10:"
-            f"fontcolor={WATERMARK_COLOR}:fontsize={WATERMARK_SIZE}:"
-            f"shadowcolor=black@{SHADOW_OPACITY}:shadowx=2:shadowy=2"
-        )
-        
-        command = [
-            'ffmpeg', '-y', # Sobrescribir si existe
-            '-i', video_path,
-            '-vf', filter_complex, # Aplicar filtro de branding
-            '-c:v', VIDEO_CODEC,
-            '-preset', PRESET_SPEED,
-            '-crf', CRF_QUALITY,
-            '-b:v', VIDEO_BITRATE,
-            '-c:a', AUDIO_CODEC,
-            '-b:a', AUDIO_BITRATE,
-            output_path
-        ]
-        
-        # Redirigir logs según DEBUG_MODE
-        stdout_dest = subprocess.PIPE if DEBUG_MODE else subprocess.DEVNULL
-        stderr_dest = subprocess.PIPE if DEBUG_MODE else subprocess.DEVNULL
+        log_imperial(f"🛠️ [PROCESO MASTER] Iniciando producción maestra sincronizada de: {nombre_serie}...")
         
         try:
-            log_imperial(f"🎬 [FFMPEG] Ejecutando renderizado de {nombre_serie} optimizado para móvil...")
-            process = subprocess.Popen(command, stdout=stdout_dest, stderr=stderr_dest, text=True)
+            # 1. --- MÓDULO CORTES: Gestión de Segmentos (lógica cortes.py) ---
+            log_imperial(f"🎬 [CORTES] Analizando video original para auto-corte en {NUM_SEGMENTS_AUTOCUT} partes...")
+            clip = VideoFileClip(video_path)
+            duracion_total = clip.duration
+            clip.close() # Cerrar clip original
             
-            if DEBUG_MODE:
-                # Si está en debug, imprimir la salida de FFmpeg
-                for line in process.stderr:
-                    print(f"[FFMPEG-DEBUG] {line.strip()}")
+            duracion_segmento = duracion_total / NUM_SEGMENTS_AUTOCUT
+            log_imperial(f"🎬 [CORTES] Duración total: {duracion_total:.2f}s | Segmentos de {duracion_segmento:.2f}s")
             
-            process.wait() # Esperar a que FFmpeg termine
-            
-            if process.returncode != 0:
-                raise Exception(f"FFmpeg falló con código {process.returncode}")
+            for chapter in range(1, NUM_SEGMENTS_AUTOCUT + 1):
+                log_imperial(f"🛠️ [PROCESO {chapter}/{NUM_SEGMENTS_AUTOCUT}] Iniciando ciclo completo para Capítulo {chapter}...")
                 
-            log_imperial(f"✅ [FFMPEG] Renderizado imperial completado: {output_filename}")
+                # Definir tiempos de corte
+                start_time = (chapter - 1) * duracion_segmento
+                end_time = chapter * duracion_segmento
+                
+                filename = os.path.basename(video_path)
+                name_part, ext = os.path.splitext(filename)
+                # Nombre único para el segmento procesado
+                output_filename = f"PROCESADO_{name_part}_Cap{chapter}{ext}"
+                output_path = os.path.join(PRODUCTION_FOLDER, output_filename)
+                
+                # 2. --- MÓDULO MARCAS: FFmpeg Imperial (lógica marcas.py) ---
+                # Filtro drawtext complejo para marca de agua con sombra
+                filter_complex = (
+                    f"drawtext=text='{WATERMARK_TEXT}':x=10:y=H-th-10:"
+                    f"fontcolor={WATERMARK_COLOR}:fontsize={WATERMARK_SIZE}:"
+                    f"shadowcolor=black@{SHADOW_OPACITY}:shadowx=2:shadowy=2"
+                )
+                
+                command = [
+                    'ffmpeg', '-y', # Sobrescribir si existe
+                    '-ss', str(start_time), # Tiempo de inicio del corte
+                    '-t', str(duracion_segmento), # Duración del corte
+                    '-i', video_path,
+                    '-vf', filter_complex, # Aplicar filtro de branding
+                    '-c:v', VIDEO_CODEC,
+                    '-preset', PRESET_SPEED,
+                    '-crf', CRF_QUALITY,
+                    '-b:v', VIDEO_BITRATE,
+                    '-c:a', AUDIO_CODEC,
+                    '-b:a', AUDIO_BITRATE,
+                    output_path
+                ]
+                
+                # Redirigir logs según DEBUG_MODE
+                stdout_dest = subprocess.PIPE if DEBUG_MODE else subprocess.DEVNULL
+                stderr_dest = subprocess.PIPE if DEBUG_MODE else subprocess.DEVNULL
+                
+                log_imperial(f"🎬 [FFMPEG CAP{chapter}] Ejecutando renderizado optimizado de corte...")
+                process = subprocess.Popen(command, stdout=stdout_dest, stderr=stderr_dest, text=True)
+                
+                if DEBUG_MODE:
+                    for line in process.stderr:
+                        print(f"[FFMPEG-DEBUG] {line.strip()}")
+                
+                process.wait() # Esperar a que FFmpeg termine el capítulo
+                
+                if process.returncode != 0:
+                    raise Exception(f"FFmpeg falló en Capítulo {chapter} con código {process.returncode}")
+                    
+                log_imperial(f"✅ [FFMPEG CAP{chapter}] Capítulo renderizado con éxito: {output_filename}")
+                
+                # 3. --- MÓDULO DISTRIBUCIÓN: (lógica enviar.py con branding EscenaDe15) ---
+                # Caption optimizado para capítulos cortos (Escena de 15)
+                subida_exitosa = enviar_a_telegram_imperial(output_path, portada_path, nombre_serie, descripcion, chapter)
+                
+                # --- LIMPIEZA DE ARCHIVO PROCESADO ---
+                if subida_exitosa:
+                    try:
+                        os.remove(output_path)
+                        log_imperial(f"🧹 [LIMPIEZA CAP{chapter}] Segmento procesado eliminado.")
+                    except OSError as e:
+                        log_imperial(f"⚠️ [LIMPIEZA] Error eliminando segmento: {str(e)}")
+                
+                # Pausa táctica entre capítulos para no "inundar" Telegram
+                log_imperial(f"⚡ [COOLDOWN] Esperando {PAUSA_ENTRE_CAPS}s antes del siguiente segmento...")
+                time.sleep(PAUSA_ENTRE_CAPS)
             
-            # Pausa táctica entre capítulos para no "inundar" Telegram
-            time.sleep(PAUSA_ENTRE_CAPS)
-            
-            # --- MÓDULO: DISTRIBUCIÓN (enviar_a_telegram, lógica enviar.py) ---
-            subida_exitosa = enviar_a_telegram_imperial(output_path, portada_path, nombre_serie, descripcion)
-            
-            # --- LIMPIEZA DE ARCHIVOS TEMPORALES ---
-            if subida_exitosa:
-                try:
-                    os.remove(video_path)
-                    os.remove(portada_path)
-                    os.remove(output_path)
-                    log_imperial(f"🧹 [LIMPIEZA] Archivos temporales de {nombre_serie} eliminados.")
-                except OSError as e:
-                    log_imperial(f"⚠️ [LIMPIEZA] Error eliminando temporales: {str(e)}")
-            else:
-                 log_imperial(f"🛑 [LIMPIEZA] No se borraron los archivos debido a fallo en la subida.")
+            # 4. --- LIMPIEZA FINAL DE ARCHIVOS ORIGINALES ---
+            log_imperial(f"🏆 [EXITO MAESTRO] Producción sincronizada de {nombre_serie} completada.")
+            try:
+                os.remove(video_path)
+                os.remove(portada_path)
+                log_imperial(f"🧹 [LIMPIEZA FINAL] Archivos originales eliminados.")
+            except OSError as e:
+                log_imperial(f"⚠️ [LIMPIEZA FINAL] Error eliminando originales: {str(e)}")
             
         except Exception as e:
-            error_msg = f"❌ [ERROR CRÍTICO] Falló el ciclo de producción de {nombre_serie}: {str(e)}"
+            error_msg = f"❌ [ERROR CRÍTICO MAESTRO] Falló el ciclo sincronizado de {nombre_serie}: {str(e)}"
             log_imperial(error_msg)
 
 # ==========================================
 #   MÓDULO: TELEGRAM SEND (lógica enviar.py con reintentos)
 # ==========================================
 
-def enviar_a_telegram_imperial(video_processed_path, portada_path, nombre_serie, descripcion):
-    """Envía el video procesado y la portada al canal oficial Mally Series"""
-    log_imperial(f"📡 [TELEGRAM] Iniciando subida de {nombre_serie} a {TG_OFFICIAL}...")
+def enviar_a_telegram_imperial(video_processed_path, portada_path, nombre_serie, descripcion, chapter):
+    """Envía el video procesado y la portada al canal oficial Mally Series (con branding EscenaDe15)"""
+    log_imperial(f"📡 [TELEGRAM CAP{chapter}] Iniciando subida de segmento a {TG_OFFICIAL}...")
     
     # Capitalizar para el mensaje de marca
     studio_upper = STUDIO_NAME.upper()
     
+    # Caption optimizado para Escena de 15 (Capítulos)
     caption_imperial = (
         f"👑 <b>{studio_upper} PRESENTA:</b>\n"
         f"───────────────────\n"
-        f"🎬 <b>{nombre_serie}</b>\n"
-        f"📝 <b>Reseña:</b> {descripcion}\n"
+        f"🎬 <b>{nombre_serie} • Capítulo {chapter}</b>\n"
+        f"📝 <b>Info:</b> {descripcion}\n"
         f"───────────────────\n"
         f"📡 <b>Oficial:</b> {TG_OFFICIAL}\n"
         f"🎥 <b>TikTok:</b> {TT_OFFICIAL}\n"
-        f"⚡ <i>Powered by Umbrae Sincronizado V3.0</i>"
+        f"⚡ <i>Umbrae Sincronizado V3.1 (AutoCortes)</i>"
     )
     
     retries = 0
@@ -189,7 +226,7 @@ def enviar_a_telegram_imperial(video_processed_path, portada_path, nombre_serie,
                 
                 # Enviar video con portada (thumb) y caption HTML
                 bot.send_video(
-                    CHAT_ID, 
+                    CHAT_ID_CANAL, 
                     video_file, 
                     caption=caption_imperial, 
                     parse_mode="HTML",
@@ -198,24 +235,24 @@ def enviar_a_telegram_imperial(video_processed_path, portada_path, nombre_serie,
                     timeout=TIMEOUT_SEND # Tiempo de espera para archivos grandes
                 )
                 
-            log_imperial(f"🏆 [EXITO] {nombre_serie} publicada oficialmente en {TG_OFFICIAL}.")
+            log_imperial(f"🏆 [EXITO TELEGRAM CAP{chapter}] Publicado oficialmente en {TG_OFFICIAL}.")
             return True # Retorna True si tiene éxito la subida
             
         except Exception as e:
             retries += 1
-            log_imperial(f"⚠️ [REINTENTO {retries}/{MAX_RETRIES}] Error enviando a Telegram: {str(e)}")
+            log_imperial(f"⚠️ [REINTENTO CAP{chapter} {retries}/{MAX_RETRIES}] Error enviando a Telegram: {str(e)}")
             time.sleep(10) # Esperar antes de reintentar
             
-    log_imperial(f"❌ [FALLO TOTAL] No se pudo enviar {nombre_serie} tras {MAX_RETRIES} intentos.")
+    log_imperial(f"❌ [FALLO TOTAL CAP{chapter}] No se pudo enviar el segmento tras {MAX_RETRIES} intentos.")
     return False # Retorna False si falla la subida total
 
 # ==========================================
-#   MÓDULO: WEB APP LOCAL (lógica run.py)
+#   MÓDULO: WEB APP LOCAL (lógica run.py - Puerto 8080)
 # ==========================================
 
 @app.route('/')
 def index():
-    """Carga la interfaz principal de Mally Series localmente"""
+    """Carga la interfaz principal de Mally Series localmente en puerto 8080"""
     log_imperial("🌐 [WEB] Acceso local a la interfaz principal detectado.")
     try:
         return render_template('index.html')
@@ -225,7 +262,7 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    """Recibe los archivos de la Web Local y lanza el hilo de procesamiento"""
+    """Recibe los archivos de la Web Local y lanza el hilo de procesamiento sincronizado"""
     log_imperial("🔄 [WEB] Intento de subida local para Mally Series recibido...")
     
     try:
@@ -260,8 +297,9 @@ def upload_file():
         
         log_imperial(f"📥 [WEB] Archivos recibidos y guardados localmente: {v_filename}")
 
-        # 3. LANZAR EL CICLO DE PRODUCCIÓN EN UN HILO SEPARADO
+        # 3. LANZAR EL CICLO DE PRODUCCIÓN MAESTRO EN UN HILO SEPARADO
         # Esto permite responder "OK" a la web de inmediato, sin bloquearla
+        # El hilo se encargará de: Cortar, Marcar, Enviar, Limpiar.
         processing_thread = threading.Thread(
             target=procesar_video_imperial,
             args=(video_path, portada_path, nombre_serie, descripcion)
@@ -271,7 +309,7 @@ def upload_file():
         # 4. Responder a la Web Local
         return jsonify({
             "status": "success", 
-            "message": f"🔥 PRODUCCIÓN DE '{nombre_serie}' INICIADA. Revisa {TG_OFFICIAL} en unos minutos."
+            "message": f"🔥 PRODUCCIÓN MAESTRA DE '{nombre_serie}' INICIADA (AutoCorte en {NUM_SEGMENTS_AUTOCUT} caps). Revisa {TG_OFFICIAL} en unos minutos."
         }), 200
 
     except Exception as e:
@@ -287,25 +325,31 @@ if __name__ == "__main__":
     os.system('clear' if os.name == 'posix' else 'cls')
     
     print("==========================================")
-    print(f"   {STUDIO_NAME.upper()} - CORE V3.0 (SINCRONIZADO)")
-    print("     TODO EN UNO: WEB + MARCAS + ENVÍOS")
+    print(f"   {STUDIO_NAME.upper()} - CORE V3.1 (SINCRONIZADO)")
+    print("     TODO EN UNO: WEB (8080) + CORTES + ENVÍOS PRIVADOS")
     print("==========================================")
     
-    log_imperial(f"🚀 Iniciando Master Core sincronizado en puerto 8000...")
+    # --- CORRECCIÓN DE PUERTO: VOLVER AL 8080 LOCAL ---
+    # Para mantener el "Ruth" o la gestión de antes que mencionas.
+    log_imperial(f"🚀 Iniciando Master Core sincronizado en PUERTO 8080 LOCAL...")
     log_imperial(f"📡 Logs locales guardándose en: {LOG_FILE}")
-    log_imperial(f"📡 Accede a la Web Local en http://0.0.0.0:8000")
-    log_imperial(f"⚠️ NOTA LOCAL: Funcionando sin túnel HTTPS. BotFather no integrará este link.")
+    log_imperial(f"📡 Accede a la Web Local en http://0.0.0.0:8080")
+    log_imperial(f"📡 AutoCortes de Mally Series configurado en: {NUM_SEGMENTS_AUTOCUT} capítulos.")
+    log_imperial(f"⚠️ NOTA LOCAL PARAGUAY: Funcionando sin túnel HTTPS. Usar WiFi local para subir media.")
     
-    # Notificación silenciosa de arranque al Canal Oficial
-    try:
-        bot.send_message(CHAT_ID, f"🛡️ <b>Core {STUDIO_NAME} Sincronizado V3.0</b>\nTodo en Uno en línea. Esperando transmisiones locales para Mally Series.", parse_mode="HTML")
-    except Exception as e:
-        log_imperial(f"⚠️ No se pudo enviar notificación de arranque a Telegram: {str(e)}")
+    # --- CORRECCIÓN DE PRIVACIDAD: NOTIFICACIÓN PRIVADA AL ADMIN ---
+    if ADMIN_PERSONAL_ID != "TU_ID_PERSONAL_AQUÍ":
+        try:
+            bot.send_message(ADMIN_PERSONAL_ID, f"🛡️ <b>Core {STUDIO_NAME} Sincronizado V3.1 LOCAL (Puerto 8080)</b>\nSistemas de AutoCorte operativos. Solo tú has sido notificado, Noa.", parse_mode="HTML")
+            log_imperial(f"📡 Notificación de arranque enviada PRIVADAMENTE al ID {ADMIN_PERSONAL_ID}.")
+        except Exception as e:
+            log_imperial(f"⚠️ No se pudo enviar notificación PRIVADA a Telegram. Verifica tu ID: {str(e)}")
+    else:
+        log_imperial(f"⚠️ Configura ADMIN_PERSONAL_ID en main.py para recibir notificaciones privadas de arranque.")
 
     try:
-        # IMPORTANTE PARA TERMUX LOCAL: host 0.0.0.0 y use_reloader=False
-        # No usamos debug=True para evitar inestabilidad en producción local
-        app.run(host="0.0.0.0", port=8000, debug=False, use_reloader=False)
+        # IMPORTANTE PARA TERMUX LOCAL: host 0.0.0.0, Puerto 8080, use_reloader=False
+        app.run(host="0.0.0.0", port=8080, debug=False, use_reloader=False)
     except KeyboardInterrupt:
         log_imperial(f"\n🛑 Apagando sistemas imperiales de {STUDIO_NAME} por solicitud del usuario...")
         sys.exit(0)
