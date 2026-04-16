@@ -3,299 +3,290 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MALLY SERIES • UMBRAE STUDIO</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <title>UMBRAE STUDIO • MALLYCUTS V3.1</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --neon-color: #00f2ff;
-            --neon-glow: rgba(0, 242, 255, 0.5);
-            --bg-dark: #050505;
-            --card-bg: rgba(20, 20, 20, 0.95);
-            --input-bg: #121212;
-            --text-gray: #888;
-            --accent-gradient: linear-gradient(90deg, #00f2ff, #0072ff);
+            --primary: #bc00ff;
+            --accent: #00f2ff;
+            --bg-dark: #020202;
+            --glass: rgba(15, 15, 15, 0.85);
+            --border: rgba(188, 0, 255, 0.2);
+            --font-main: 'Rajdhani', sans-serif;
+            --font-tech: 'Orbitron', sans-serif;
         }
 
-        * { box-sizing: border-box; }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            background-color: var(--bg-dark);
-            background-image: 
-                radial-gradient(circle at 10% 20%, rgba(0, 242, 255, 0.05) 0%, transparent 20%),
-                radial-gradient(circle at 90% 80%, rgba(0, 114, 255, 0.05) 0%, transparent 20%);
-            color: white;
-            font-family: 'Rajdhani', sans-serif;
+            background: var(--bg-dark);
+            color: #fff;
+            font-family: var(--font-main);
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            overflow-x: hidden;
+            overflow: hidden;
         }
 
-        .container {
-            width: 100%;
-            max-width: 480px;
-            background: var(--card-bg);
-            padding: 40px;
-            border-radius: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
-            position: relative;
+        /* BACKGROUND ANIMATION */
+        .stars-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 50%, #1a0033 0%, #020202 100%);
+            z-index: -1;
         }
 
-        /* Línea superior decorativa */
-        .container::before {
-            content: '';
+        .grid {
             position: absolute;
-            top: 0; left: 20%; right: 20%;
-            height: 2px;
-            background: var(--accent-gradient);
-            box-shadow: 0 0 10px var(--neon-color);
+            width: 200%; height: 200%;
+            background-image: linear-gradient(var(--border) 1px, transparent 1px), 
+                              linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 50px 50px;
+            transform: perspective(500px) rotateX(60deg) translateY(-100px);
+            animation: move-grid 15s linear infinite;
+            opacity: 0.3;
         }
 
-        .header {
-            text-align: center;
-            margin-bottom: 35px;
+        @keyframes move-grid { 0% { transform: perspective(500px) rotateX(60deg) translateY(0); } 100% { transform: perspective(500px) rotateX(60deg) translateY(50px); } }
+
+        /* MAIN CONTAINER */
+        .panel {
+            width: 90%;
+            max-width: 500px;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 40px;
+            backdrop-filter: blur(25px);
+            box-shadow: 0 0 40px rgba(188, 0, 255, 0.15), inset 0 0 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+            z-index: 10;
         }
+
+        /* HEADER & LOGO */
+        .header { text-align: center; margin-bottom: 30px; }
+
+        .logo-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+
+        .logo-img {
+            width: 140px;
+            filter: drop-shadow(0 0 20px var(--primary));
+            animation: float 4s ease-in-out infinite;
+        }
+
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
 
         .header h1 {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.8rem;
-            letter-spacing: 5px;
-            margin: 0;
-            background: var(--accent-gradient);
+            font-family: var(--font-tech);
+            font-size: 2rem;
+            letter-spacing: 10px;
+            background: linear-gradient(to right, #fff, var(--primary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            margin: 10px 0;
+        }
+
+        .header span {
+            font-size: 0.7rem;
+            letter-spacing: 4px;
+            color: var(--accent);
             text-transform: uppercase;
+            opacity: 0.8;
         }
 
-        .header p {
-            color: var(--text-gray);
-            font-size: 0.85rem;
-            letter-spacing: 2px;
-            margin-top: 8px;
-            font-weight: 300;
-        }
-
-        .form-group {
-            margin-bottom: 25px;
-        }
+        /* FORM FIELD DESIGN */
+        .field { margin-bottom: 20px; }
 
         label {
-            display: flex;
-            align-items: center;
-            font-size: 0.75rem;
-            color: var(--neon-color);
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            font-weight: 700;
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            color: #888;
+            display: block;
+            margin-bottom: 8px;
+            padding-left: 10px;
         }
 
-        input[type="text"], textarea {
+        .input-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 15px;
+            transition: 0.3s;
+        }
+
+        .input-box:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(188, 0, 255, 0.2);
+        }
+
+        input, textarea {
             width: 100%;
-            background: var(--input-bg);
-            border: 1px solid #222;
-            border-radius: 12px;
-            padding: 14px;
-            color: #eee;
+            background: transparent;
+            border: none;
+            padding: 15px;
+            color: #fff;
             font-family: inherit;
-            font-size: 1rem;
             outline: none;
-            transition: all 0.3s ease;
+            font-size: 1rem;
         }
 
-        input:focus, textarea:focus {
-            border-color: var(--neon-color);
-            background: #181818;
-            box-shadow: 0 0 15px rgba(0, 242, 255, 0.1);
-        }
-
-        .file-grid {
+        /* FILE UPLOAD GRID */
+        .assets-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 15px;
             margin-bottom: 30px;
         }
 
-        .file-upload {
-            position: relative;
-            background: #151515;
-            border: 1px dashed #333;
-            border-radius: 12px;
+        .asset-btn {
+            background: rgba(188, 0, 255, 0.05);
+            border: 1px dashed var(--border);
+            border-radius: 15px;
             padding: 20px 10px;
             text-align: center;
             cursor: pointer;
-            transition: 0.3s;
+            transition: 0.4s;
+            position: relative;
         }
 
-        .file-upload:hover {
-            border-color: var(--neon-color);
-            background: rgba(0, 242, 255, 0.02);
-        }
+        .asset-btn:hover { background: rgba(188, 0, 255, 0.1); border-color: var(--accent); }
 
-        .file-upload input[type="file"] {
-            position: absolute;
-            width: 100%; height: 100%;
-            top: 0; left: 0;
-            opacity: 0;
-            cursor: pointer;
-        }
+        .asset-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
-        .file-info {
-            font-size: 0.75rem;
-            color: var(--text-gray);
-            display: block;
-            margin-top: 5px;
-        }
+        .asset-btn i { font-size: 1.5rem; display: block; margin-bottom: 5px; }
 
-        .file-icon {
-            font-size: 1.2rem;
-            margin-bottom: 8px;
-            display: block;
-        }
+        .asset-btn p { font-size: 0.65rem; font-weight: bold; color: #666; letter-spacing: 1px; }
 
-        button {
+        /* DEPLOY BUTTON */
+        .btn-deploy {
             width: 100%;
-            background: var(--accent-gradient);
+            padding: 20px;
+            background: linear-gradient(45deg, var(--primary), #5a007a);
             border: none;
-            color: white;
-            padding: 18px;
-            border-radius: 12px;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: bold;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 3px;
+            border-radius: 18px;
+            color: #fff;
+            font-family: var(--font-tech);
+            font-weight: 900;
+            letter-spacing: 5px;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 10px 20px rgba(0, 114, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            transition: 0.4s;
         }
 
-        button:hover {
-            transform: scale(1.02);
-            box-shadow: 0 0 25px var(--neon-glow);
+        .btn-deploy:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 30px var(--primary);
+            letter-spacing: 7px;
         }
 
-        .footer-logo {
-            text-align: center;
-            margin-top: 30px;
-            color: var(--text-gray);
-            font-size: 0.7rem;
-            letter-spacing: 6px;
-            text-transform: uppercase;
-            font-family: 'Orbitron', sans-serif;
-        }
-
-        /* Status & Animations */
-        #status {
+        /* LOADING SCREEN */
+        #loading {
             display: none;
             text-align: center;
-            padding: 20px 0;
         }
 
-        .loader-container {
+        .scanner {
+            width: 100%;
+            height: 2px;
+            background: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
             position: relative;
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 20px;
+            animation: scan 2s ease-in-out infinite;
         }
 
-        .loader {
-            border: 2px solid transparent;
-            border-top: 2px solid var(--neon-color);
-            border-radius: 50%;
-            width: 100%; height: 100%;
-            animation: spin 1s linear infinite;
+        @keyframes scan { 0%, 100% { top: 0; } 50% { top: 20px; } }
+
+        .status-text {
+            font-family: var(--font-tech);
+            color: var(--accent);
+            font-size: 0.8rem;
+            margin-top: 20px;
+            letter-spacing: 3px;
         }
 
-        .loader-pulse {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: var(--neon-glow);
-            border-radius: 50%;
-            animation: pulse 1.5s ease-out infinite;
-            z-index: -1;
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-family: var(--font-tech);
+            font-size: 0.6rem;
+            color: rgba(255, 255, 255, 0.2);
+            letter-spacing: 6px;
         }
-
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes pulse { 0% { transform: scale(1); opacity: 0.5; } 100% { transform: scale(1.5); opacity: 0; } }
-
-        .loading-text {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 0.75rem;
-            color: var(--neon-color);
-            letter-spacing: 2px;
-            animation: blink 1s infinite;
-        }
-
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
 
-<div class="container">
+<div class="stars-bg">
+    <div class="grid"></div>
+</div>
+
+<div class="panel">
     <div class="header">
-        <h1>MALLY SERIES</h1>
-        <p>UMBRAE STUDIO • CORE V2</p>
+        <div class="logo-wrapper">
+            <img src="/static/1000547607.png" class="logo-img" alt="Umbrae Logo">
+        </div>
+        <h1>MALLYCUTS</h1>
+        <span>SYSTEM VERSION 3.1 • BY NOA</span>
     </div>
 
-    <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
-        <div class="form-group">
-            <label><span>◈</span> Título del Proyecto</label>
-            <input type="text" name="nombre" placeholder="EJ: EL IMPERIO CONTRAATACA" required>
-        </div>
-
-        <div class="form-group">
-            <label><span>◈</span> Sinopsis Ejecutiva</label>
-            <textarea name="descripcion" rows="3" placeholder="Escribe los detalles de la obra..." required></textarea>
-        </div>
-
-        <label><span>◈</span> Assets del Sistema</label>
-        <div class="file-grid">
-            <div class="file-upload" id="drop-portada">
-                <span class="file-icon">🖼️</span>
-                <span class="file-info" id="portadaName">PORTADA JPG</span>
-                <input type="file" name="portada" accept="image/*" required onchange="updateFileName(this, 'portadaName')">
-            </div>
-
-            <div class="file-upload" id="drop-video">
-                <span class="file-icon">🎥</span>
-                <span class="file-info" id="videoName">MASTER MP4</span>
-                <input type="file" name="video" accept="video/*" required onchange="updateFileName(this, 'videoName')">
+    <form id="mallyForm" action="/upload" method="post" enctype="multipart/form-data">
+        <div class="field">
+            <label>PROJECT IDENTIFIER</label>
+            <div class="input-box">
+                <input type="text" name="nombre" placeholder="Nombre del proyecto..." required>
             </div>
         </div>
 
-        <button type="submit" id="btnSubmit">DESPLEGAR PRODUCCIÓN</button>
+        <div class="field">
+            <label>MISSION DESCRIPTION</label>
+            <div class="input-box">
+                <textarea name="descripcion" rows="2" placeholder="SINOPSIS..."></textarea>
+            </div>
+        </div>
+
+        <div class="assets-grid">
+            <div class="asset-btn">
+                <i>🖼️</i>
+                <p id="pText">PORTADA JPG</p>
+                <input type="file" name="portada" accept="image/*" required onchange="u(this, 'pText')">
+            </div>
+            <div class="asset-btn">
+                <i>🎥</i>
+                <p id="vText">MASTER VIDEO</p>
+                <input type="file" name="video" accept="video/*" required onchange="u(this, 'vText')">
+            </div>
+        </div>
+
+        <button type="submit" class="btn-deploy">EJECUTAR DESPLIEGUE</button>
     </form>
 
-    <div id="status">
-        <div class="loader-container">
-            <div class="loader"></div>
-            <div class="loader-pulse"></div>
-        </div>
-        <p class="loading-text">SINCRONIZANDO CON EL SERVIDOR...</p>
+    <div id="loading">
+        <div class="scanner"></div>
+        <p class="status-text">TRANSMITIENDO A LOS SERVIDORES...</p>
+        <p style="font-size: 0.6rem; color: #555; margin-top: 10px;">ENGINE: UMBRAE CORE V3.1</p>
     </div>
 
-    <div class="footer-logo">UMBRAE STUDIO</div>
+    <div class="footer">
+        UMBRAE STUDIO • ALL RIGHTS RESERVED
+    </div>
 </div>
 
 <script>
-    function updateFileName(input, elementId) {
+    function u(input, id) {
         if (input.files && input.files[0]) {
-            const fileName = input.files[0].name;
-            const shortName = fileName.length > 15 ? fileName.substring(0, 12) + "..." : fileName;
-            document.getElementById(elementId).innerText = "✅ " + shortName;
-            document.getElementById(elementId).style.color = "#00f2ff";
+            let n = input.files[0].name;
+            document.getElementById(id).innerText = n.length > 15 ? n.substring(0, 12) + "..." : n;
+            document.getElementById(id).style.color = "#00f2ff";
         }
     }
 
-    document.getElementById('uploadForm').onsubmit = function() {
-        document.getElementById('uploadForm').style.display = 'none';
-        document.getElementById('status').style.display = 'block';
+    document.getElementById('mallyForm').onsubmit = function() {
+        this.style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
     };
 </script>
 
