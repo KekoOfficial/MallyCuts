@@ -5,127 +5,164 @@ import os
 import socket
 import telebot
 import config
-import signal
 
-# --- CONFIGURACIÓN DE MANDO ---
+# --- CONFIG ---
 STAFF_IMPERIAL = {
     "ADMIN_PRINCIPAL": "8630490789",
-    "FUNDADORES": ["8630490789"] 
+    "FUNDADORES": ["8630490789"]
 }
 
 bot = telebot.TeleBot(config.BOT_TOKEN)
-MAX_INTENTOS_TUNEL = 5
 
+PORT = 8000
+MAX_INTENTOS_TUNEL = 5
+MAX_ESPERA_FLASK = 20
+
+
+# --- UTILIDADES ---
 def check_port(port):
-    """Verifica si el servidor Flask realmente despertó"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(('localhost', port)) == 0
+        return s.connect_ex(('127.0.0.1', port)) == 0
+
 
 def buscar_binario_cloudflared():
-    """Búsqueda lógica basada en existencia de archivos"""
     rutas = [
         "/data/data/com.termux/files/usr/bin/cloudflared",
         os.path.expanduser("~/cloudflared"),
         "/usr/local/bin/cloudflared"
     ]
+
     for r in rutas:
         if os.path.exists(r) and os.access(r, os.X_OK):
             return r
-    # Fallback al PATH
+
     try:
         res = subprocess.run(["which", "cloudflared"], capture_output=True, text=True)
         if res.returncode == 0:
             return res.stdout.strip()
-    except: pass
+    except Exception:
+        pass
+
     return None
 
+
 def limpiar_proceso(proc):
-    """Evita la creación de procesos zombis"""
-    if proc:
+    if proc and proc.poll() is None:
         proc.terminate()
         try:
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             proc.kill()
 
+
+def enviar_notificacion(msg):
+    for uid in STAFF_IMPERIAL["FUNDADORES"]:
+        try:
+            bot.send_message(uid, msg, parse_mode="HTML")
+        except Exception as e:
+            print(f"❌ Error Telegram: {e}")
+
+
+# --- CORE ---
 def lanzar_core_pro():
     server_proc = None
     tunnel_proc = None
-    
+
     try:
-        print("🚀 [UMBRAE] Iniciando Servidor...")
-        # Logs reales para auditoría
-        with open("server.log", "a") as log:
-            server_proc = subprocess.Popen(["python", "server.py"], stdout=log, stderr=log)
-        
-        # 1. Esperar a que Flask esté listo (Watchdog de puerto)
-        intentos_port = 0
-        while not check_port(8000) and intentos_port < 10:
+        print("🚀 Iniciando servidor Flask...")
+
+        log = open("server.log", "a")
+        server_proc = subprocess.Popen(
+            ["python", "server.py"],
+            stdout=log,
+            stderr=log
+        )
+
+        # --- Espera activa Flask ---
+        print("🧪 Esperando Flask...")
+        for i in range(MAX_ESPERA_FLASK):
+            if server_proc.poll() is not None:
+                print("❌ Flask se cerró inesperadamente.")
+                return
+
+            if check_port(PORT):
+                print("✅ Flask activo")
+                break
+
+            print(f"⌛ Intento {i+1}/{MAX_ESPERA_FLASK}")
             time.sleep(1)
-            intentos_port += 1
-        
-        if intentos_port == 10:
-            print("❌ Error: Flask no arrancó en el puerto 8000.")
+        else:
+            print("❌ Flask nunca abrió el puerto.")
             return
 
+        # --- Cloudflare ---
         cl_path = buscar_binario_cloudflared()
         if not cl_path:
-            print("❌ Error: cloudflared no detectado.")
+            print("❌ cloudflared no encontrado.")
             return
 
         url_publica = None
-        intentos_t = 0
-        
-        # 2. Bucle de Túnel con límite y limpieza
-        while not url_publica and intentos_t < MAX_INTENTOS_TUNEL:
-            intentos_t += 1
-            print(f"🌍 [TUNEL] Intento {intentos_t}/{MAX_INTENTOS_TUNEL}...")
-            
+
+        for intento in range(1, MAX_INTENTOS_TUNEL + 1):
+            print(f"🌍 Túnel intento {intento}/{MAX_INTENTOS_TUNEL}")
+
             tunnel_proc = subprocess.Popen(
-                [cl_path, "tunnel", "--url", "http://localhost:8000"], 
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                bufsize=1, universal_newlines=True
+                [cl_path, "tunnel", "--url", f"http://localhost:{PORT}"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True
             )
 
-            # Lectura con timeout lógico
-            start_t = time.time()
-            while time.time() - start_t < 40:
-                line = tunnel_proc.stdout.readline()
-                if not line: break
-                
-                # Regex mejorada para subdominios complejos
-                match = re.search(r"https://[-a-zA-Z0-9\.]+trycloudflare\.com", line)
-                if match:
-                    url_publica = match.group(0)
+            start = time.time()
+
+            while time.time() - start < 40:
+                if tunnel_proc.poll() is not None:
+                    print("⚠️ Túnel murió solo")
                     break
-            
-            if not url_publica:
-                print("⚠️ Fallo en este intento. Limpiando...")
-                limpiar_proceso(tunnel_proc)
-                time.sleep(2)
 
-        if url_publica:
-            mensaje = (
-                f"👑 <b>CORE PRO UMBRAE ACTIVO</b>\n"
-                f"───────────────────\n"
-                f"🔗 <b>Link:</b> {url_publica}\n"
-                f"📡 <b>Status:</b> Sincronizado\n"
-                f"⚙️ <b>Puerto:</b> 8000 (Open)\n"
-                f"───────────────────"
-            )
-            print(f"✅ URL: {url_publica}")
-            for uid in STAFF_IMPERIAL["FUNDADORES"]:
-                try: bot.send_message(uid, mensaje, parse_mode="HTML")
-                except Exception as e: print(f"Error Notify: {e}")
-            
-            # Mantener vivo el túnel
-            tunnel_proc.wait()
-            
+                line = tunnel_proc.stdout.readline()
+
+                if line:
+                    print(f"[TUNNEL] {line.strip()}")
+
+                    match = re.search(r"https://[-a-zA-Z0-9\.]+trycloudflare\.com", line)
+                    if match:
+                        url_publica = match.group(0)
+                        break
+
+            if url_publica:
+                break
+
+            limpiar_proceso(tunnel_proc)
+            time.sleep(2)
+
+        if not url_publica:
+            print("❌ No se pudo generar URL.")
+            return
+
+        # --- Notificación ---
+        mensaje = (
+            f"👑 <b>UMBRAE CORE PRO</b>\n"
+            f"───────────────────\n"
+            f"🔗 <b>{url_publica}</b>\n"
+            f"📡 ONLINE\n"
+            f"⚙️ Puerto: {PORT}\n"
+            f"───────────────────"
+        )
+
+        print(f"✅ URL: {url_publica}")
+        enviar_notificacion(mensaje)
+
+        # Mantener vivo
+        tunnel_proc.wait()
+
     except KeyboardInterrupt:
-        print("\n🛑 Apagando Infraestructura...")
+        print("\n🛑 Apagando...")
+
     finally:
         limpiar_proceso(tunnel_proc)
         limpiar_proceso(server_proc)
+
 
 if __name__ == "__main__":
     lanzar_core_pro()
