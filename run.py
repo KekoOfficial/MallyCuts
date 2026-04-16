@@ -1,4 +1,3 @@
-cat <<EOF > run.py
 import os
 import threading
 import time
@@ -8,7 +7,7 @@ import main
 app = Flask(__name__)
 
 # Asegurar infraestructura
-for folder in ['static', 'templates']:
+for folder in ['static', 'templates', 'mally_studio_segments']:
     os.makedirs(folder, exist_ok=True)
 
 @app.route('/')
@@ -30,7 +29,6 @@ def upload():
         p_vid = os.path.join('mally_studio_segments', f"v_{timestamp}_{video.filename}")
         p_port = os.path.join('mally_studio_segments', f"p_{timestamp}_{portada.filename}")
         
-        os.makedirs('mally_studio_segments', exist_ok=True)
         video.save(p_vid)
         portada.save(p_port)
         
@@ -52,4 +50,3 @@ if __name__ == "__main__":
     print("   PORT: 9090 | STATUS: ONLINE            ")
     print("==========================================")
     app.run(host='0.0.0.0', port=PORT, debug=False, threaded=True)
-EOF
