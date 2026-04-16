@@ -13,7 +13,7 @@ CHAT_ID_CANAL = "-1003584710096"
 # --- PRIVACIDAD MAESTRA: TU ID PERSONAL ---
 # Pon aquí tu ID personal de Telegram (ej: "8630490789")
 # Para que el Bot te notifique solo a ti en privado.
-ADMIN_PERSONAL_ID = "TU_ID_PERSONAL_AQUÍ" 
+ADMIN_PERSONAL_ID = "8630490789" 
 
 # Branding Oficial & Distribución
 TG_OFFICIAL = "t.me/MallySeries"
