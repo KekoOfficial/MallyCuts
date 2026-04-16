@@ -3,28 +3,17 @@ import os
 import time
 import config
 import telebot
+import logger  # Importamos tu nuevo logger
 
-# Conexión con el Bot de Telegram
 bot = telebot.TeleBot(config.BOT_TOKEN)
 
 def motor_mallycuts_express(video_path, portada_path, nombre, descripcion):
-    """
-    Motor V4.5: Envía kit de prensa primero, luego clips con miniatura invisible.
-    """
     try:
-        print(f"\n[🚀] INICIANDO DESPLIEGUE: {nombre}")
+        print(f"\n[🚀] INICIANDO MOTOR: {nombre}")
         
-        # --- PASO 1: ENVIAR PORTADA Y TÍTULOS PRIMERO ---
-        # Esto sirve para que en Telegram veas primero de qué trata el proyecto.
-        with open(portada_path, 'rb') as p:
-            mensaje_principal = (
-                f"🗂️ **NUEVO PROYECTO: {nombre}**\n"
-                f"━━━━━━━━━━━━━━━━━━━━\n"
-                f"📝 **DESCRIPCIÓN:**\n{descripcion}\n\n"
-                f"👑 **Creador:** Noa | Umbrae Studio\n"
-                f"📅 **Fecha:** {time.strftime('%d/%m/%Y')}"
-            )
-            bot.send_photo(config.CHAT_ID, p, caption=mensaje_principal, parse_mode='Markdown')
+        # --- PASO 1: REGISTRO INICIAL (Kit de Prensa) ---
+        # Llamamos al logger para que envíe la portada y el texto primero
+        logger.registrar_despliegue_imperial(nombre, descripcion, portada_path)
         
         # --- PASO 2: ANÁLISIS DE VIDEO ---
         probe = ffmpeg.probe(video_path)
@@ -38,21 +27,17 @@ def motor_mallycuts_express(video_path, portada_path, nombre, descripcion):
             output_name = f"Clip_{i+1}_{nombre.replace(' ', '_')}.mp4"
             output_path = os.path.join(config.TEMP_FOLDER, output_name)
             
-            print(f"[🎬] Creando Clip {i+1}/{total_clips}...")
-
-            # Definimos las entradas
+            # Entradas: Video y Portada escalada a 1080x1920
             input_video = ffmpeg.input(video_path, ss=start_time, t=clip_duration)
-            # Escalamos la portada al formato estándar de TikTok (1080x1920)
             input_cover = ffmpeg.input(portada_path).filter('scale', 1080, 1920)
 
-            # Inyectamos la portada solo 0.05 segundos (invisible pero detectable por TikTok)
+            # Inyección de miniatura (0.05s para que TikTok la vea pero no estorbe)
             video_final = ffmpeg.overlay(
                 input_video, 
                 input_cover, 
                 enable='between(t,0,0.05)'
             )
 
-            # Renderizado Ultra-Rápido
             (
                 ffmpeg
                 .output(video_final, input_video.audio, output_path, 
@@ -61,21 +46,19 @@ def motor_mallycuts_express(video_path, portada_path, nombre, descripcion):
                 .run(quiet=True)
             )
 
-            # --- PASO 4: ENVIAR CLIPS ---
+            # --- PASO 4: ENVÍO DE CLIPS ---
             with open(output_path, 'rb') as v:
-                caption_clip = f"🎬 {nombre} - Parte {i+1}\n🚀 Listo para publicar"
+                caption_clip = f"🎬 {nombre} - Parte {i+1}\n✅ Portada inyectada"
                 bot.send_video(config.CHAT_ID, v, caption=caption_clip, supports_streaming=True)
             
-            # Limpieza inmediata de clip enviado
             if os.path.exists(output_path):
                 os.remove(output_path)
 
         # --- PASO 5: LIMPIEZA FINAL ---
         if os.path.exists(video_path): os.remove(video_path)
         if os.path.exists(portada_path): os.remove(portada_path)
-        
-        print(f"\n[✅] TODO ENVIADO: {nombre} ya está en Telegram.")
+        print(f"[✅] DESPLIEGUE FINALIZADO")
 
     except Exception as e:
-        print(f"[🔥] ERROR EN EL MOTOR: {str(e)}")
-
+        logger.log_error(str(e))
+        print(f"[🔥] ERROR: {e}")
