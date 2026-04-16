@@ -2,25 +2,24 @@
 import config
 
 def obtener_filtro_agua():
-    """Retorna la cadena de filtros para la marca de agua"""
-    texto = config.WATERMARK_TEXT # t.me/MallySeries
-    size = config.WATERMARK_SIZE
-    color = config.WATERMARK_COLOR
+    """Filtro avanzado con doble red social y sombra"""
+    # Texto combinado para la esquina inferior
+    texto_marca = f"TG: MallySeries | TT: EscenaDe15"
     
     filtro = (
-        f"drawtext=text='{texto}':"
-        f"x=w-tw-20:y=h-th-20:"
-        f"fontsize={size}:"
-        f"fontcolor={color}:"
+        f"drawtext=text='{texto_marca}':"
+        f"x=w-tw-20:y=h-th-20:" # Posición pro en esquina
+        f"fontsize={config.WATERMARK_SIZE}:"
+        f"fontcolor={config.WATERMARK_COLOR}:"
         f"shadowcolor=black@0.6:shadowx=2:shadowy=2"
     )
     return filtro
 
 def aplicar_metadatos_cmd(n_cap):
-    """Metadatos que firman el archivo como Umbrae Studio"""
+    """Firma digital invisible de Umbrae Studio"""
     return [
-        '-metadata', f'title=Cap {n_cap} - {config.WATERMARK_TEXT}',
+        '-metadata', f'title=Cap {n_cap} - Mally Series',
         '-metadata', 'artist=Umbrae Studio',
-        '-metadata', 'album=Mally Series',
-        '-metadata', 'comment=Copyright © 2026 Umbrae Studio'
+        '-metadata', 'copyright=Copyright © 2026 Umbrae Studio',
+        '-metadata', 'comment=Distribuido por EscenaDe15'
     ]
