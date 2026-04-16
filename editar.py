@@ -2,38 +2,24 @@ from PIL import Image, ImageFilter
 import os
 
 def preparar_portada_imperial(input_path, output_path):
-    """
-    Ajusta cualquier imagen al formato vertical 1080x1920.
-    Si la imagen es horizontal, crea un efecto de fondo borroso.
-    """
+    """Ajusta imagen a 1080x1920 con fondo borroso si es necesario."""
     try:
         target_size = (1080, 1920)
         img = Image.open(input_path).convert("RGB")
-        
-        # 1. Calculamos proporciones
         img_ratio = img.width / img.height
-        target_ratio = target_size[0] / target_size[1]
-
-        if img_ratio == target_ratio:
-            # Si ya es perfecta, solo redimensionamos
-            final_img = img.resize(target_size, Image.Resampling.LANCZOS)
-        else:
-            # Si no es vertical, creamos fondo borroso (estilo profesional)
-            background = img.resize(target_size, Image.Resampling.LANCZOS)
-            background = background.filter(ImageFilter.GaussianBlur(radius=20))
-            
-            # Ajustamos la imagen original para que quepa al ancho
-            new_width = target_size[0]
-            new_height = int(new_width / img_ratio)
-            img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            
-            # Centramos la imagen sobre el fondo borroso
-            offset = (0, (target_size[1] - new_height) // 2)
-            background.paste(img_resized, offset)
-            final_img = background
-
-        final_img.save(output_path, quality=95)
+        
+        # Crear base borrosa
+        bg = img.resize(target_size, Image.Resampling.LANCZOS)
+        bg = bg.filter(ImageFilter.GaussianBlur(radius=25))
+        
+        # Ajustar imagen original al ancho sin deformar
+        new_w = target_size[0]
+        new_h = int(new_w / img_ratio)
+        img_res = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        
+        # Pegar en el centro
+        offset = (0, (target_size[1] - new_h) // 2)
+        bg.paste(img_res, offset)
+        bg.save(output_path, quality=95)
         return True
-    except Exception as e:
-        print(f"❌ [EDITAR ERROR] {e}")
-        return False
+    except: return False
