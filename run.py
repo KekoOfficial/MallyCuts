@@ -1,91 +1,38 @@
-import subprocess
-import re
-import time
 import os
-import socket
-import threading
+import time
 import telebot
 import config
-from flask import Flask # Asegúrate de que tu lógica de Flask esté aquí o se importe
+from flask import Flask, render_template
 
-# --- IMPORTA AQUÍ TU APP DE FLASK ---
-# Si tu Flask está en otro archivo, por ejemplo app.py:
-# from app import app 
-# Si está aquí mismo, define 'app = Flask(__name__)' abajo.
-
-app = Flask(__name__) # Ejemplo, ajusta según tu código real
-
-@app.route('/')
-def home():
-    return "Umbrae Studio Core Online"
+# --- CONFIGURACIÓN DE LA APP ---
+# Asegúrate de que la carpeta 'templates' esté en el mismo directorio
+app = Flask(__name__, template_folder='templates')
 
 # --- CONFIGURACIÓN DE MANDO ---
 ADMIN_ID = "8630490789"
 bot = telebot.TeleBot(config.BOT_TOKEN)
 
-def check_port(port):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(('localhost', port)) == 0
+# --- RUTAS DE FLASK ---
+@app.route('/')
+def index():
+    # Esto cargará tu index.html que vimos en el código
+    return render_template('index.html')
 
-def buscar_cl():
-    rutas = ["/data/data/com.termux/files/usr/bin/cloudflared", os.path.expanduser("~/cloudflared")]
-    for r in rutas:
-        if os.path.exists(r): return r
-    return "cloudflared"
+@app.route('/status')
+def status():
+    return "Umbrae Studio Core Online"
 
-def iniciar_tunel():
-    """Esta función corre en un hilo separado"""
-    print("⏳ Esperando estabilidad del servidor para abrir túnel...")
-    time.sleep(5) # Espera a que Flask respire
-    
-    cl_path = buscar_cl()
-    url_publica = None
-    
-    for intento in range(1, 6):
-        if check_port(8000):
-            print(f"🌍 [TUNEL] Intento {intento}: Conectando con Cloudflare...")
-            proc = subprocess.Popen(
-                [cl_path, "tunnel", "--url", "http://localhost:8000"],
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
-            )
-            
-            start_t = time.time()
-            while time.time() - start_t < 40:
-                line = proc.stdout.readline()
-                if not line: break
-                match = re.search(r"https://[-a-zA-Z0-9\.]+trycloudflare\.com", line)
-                if match:
-                    url_publica = match.group(0)
-                    break
-            
-            if url_publica:
-                mensaje = (
-                    f"👑 <b>UMBRAE STUDIO MASTER CORE</b>\n"
-                    f"───────────────────\n"
-                    f"🔗 <b>Link:</b> {url_publica}\n"
-                    f"🚀 <b>Status:</b> Sincronizado\n"
-                    f"───────────────────"
-                )
-                print(f"✅ URL GENERADA: {url_publica}")
-                bot.send_message(ADMIN_ID, mensaje, parse_mode="HTML")
-                break
-            else:
-                proc.terminate()
-                print("⚠️ No se detectó URL, reintentando...")
-                time.sleep(3)
-        else:
-            print(f"🔄 Puerto 8000 cerrado, reintentando... ({intento}/5)")
-            time.sleep(3)
-
+# --- INICIO DEL SERVIDOR ---
 if __name__ == "__main__":
-    # 1. Lanzamos el túnel en un hilo (Background)
-    hilo_tunel = threading.Thread(target=iniciar_tunel, daemon=True)
-    hilo_tunel.start()
+    print("🚀 [CORE] Iniciando Servidor en Red Local...")
+    print(f"📡 Accede desde tu navegador usando tu IP local en el puerto 8000")
     
-    # 2. Lanzamos Flask en el hilo principal
-    print("🚀 [CORE] Lanzando Servidor Flask en Puerto 8000...")
     try:
-        # IMPORTANTE: host 0.0.0.0 y use_reloader=False para no duplicar hilos
-        app.run(host="0.0.0.0", port=8000, debug=False, use_reloader=False)
+        # Notificación básica de arranque al Admin
+        bot.send_message(ADMIN_ID, "👑 <b>SISTEMA UMBRAE ACTIVO</b>\nRed local sincronizada.", parse_mode="HTML")
+        
+        # Ejecución normal: host 0.0.0.0 permite acceso desde otros dispositivos en la misma WiFi
+        app.run(host="0.0.0.0", port=8000, debug=False)
+        
     except KeyboardInterrupt:
-        print("\n🛑 Apagando sistemas Umbrae...")
+        print("\n🛑 Apagando Servidor...")
