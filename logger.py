@@ -1,94 +1,98 @@
 import telebot
 import config
 import time
-import psutil # Para monitorear el sistema
+import psutil
 import os
+import datetime
 
+# Inicialización del Núcleo Imperial
 bot = telebot.TeleBot(config.BOT_TOKEN)
 
-def get_sys_info():
-    """Obtiene el estado de salud de tu Termux/Dispositivo."""
+def get_sys_telemetry():
+    """Captura de datos de hardware en tiempo real (Xiaomi/Termux)."""
     try:
-        cpu = psutil.cpu_percent()
+        cpu = psutil.cpu_percent(interval=0.1)
         ram = psutil.virtual_memory().percent
-        return f"🌡️ CPU: {cpu}% | 🧠 RAM: {ram}%"
+        disk = psutil.disk_usage('/').percent
+        return cpu, ram, disk
     except:
-        return "🛰️ Sistema: Activo"
+        return 0, 0, 0
+
+def create_bar(percent, length=12):
+    """Barra de carga visual con estética de bloque sólido."""
+    filled = int(length * percent // 100)
+    return "█" * filled + "▒" * (length - filled)
 
 def registrar_despliegue_imperial(nombre, descripcion, portada_path):
     """
-    Reporte de alto nivel con estética Hacker-Premium.
+    Envía la Ficha Técnica con telemetría de hardware al iniciar el proceso.
     """
-    sys_info = get_sys_info()
-    try:
-        header = "┏━━━━━━━━━━━━━━━━━━━━━━┓"
-        footer = "┗━━━━━━━━━━━━━━━━━━━━━━┛"
-        
-        mensaje = (
-            f"🚀 **UMBRAE STUDIO - INITIATING DEPLOY**\n"
-            f"{header}\n"
-            f"📂 **PROYECTO:** `{nombre.upper()}`\n"
-            f"📝 **INFO:** {descripcion}\n"
-            f"👤 **CREADOR:** Noa\n"
-            f"📊 **STATUS:** Processing Clips...\n"
-            f"{header}\n"
-            f"🛠️ **ENGINE INFO:**\n"
-            f"└ {sys_info}\n"
-            f"└ 🕒 {time.strftime('%H:%M:%S')} | 📅 {time.strftime('%d/%m/%Y')}\n"
-            f"{footer}"
-        )
+    cpu, ram, disk = get_sys_telemetry()
+    time_now = datetime.datetime.now().strftime('%H:%M:%S')
+    
+    header = "💠 ─── 𝖴𝖬𝖡𝖱𝖠𝖤 𝖲𝖸𝖲𝖳𝖤𝖬 𝖮𝖲 𝖵𝟨.𝟧 ─── 💠"
+    
+    # Acortamos la descripción para el log si es muy larga
+    desc_corta = (descripcion[:60] + '...') if len(descripcion) > 60 else descripcion
+    
+    mensaje = (
+        f"{header}\n\n"
+        f"📂 **PROYECTO:** `{nombre.upper()}`\n"
+        f"📝 **INFO:** `{desc_corta}`\n"
+        f"👑 **OPERADOR:** `UmbraeStudio`\n\n"
+        f"📊 **MÉTRICAS DEL SISTEMA:**\n"
+        f"├─ CPU: `{create_bar(cpu)}` {cpu}%\n"
+        f"├─ RAM: `{create_bar(ram)}` {ram}%\n"
+        f"└─ DSK: `{create_bar(disk)}` {disk}%\n\n"
+        f"🛰️ **SINC:** `{time_now} | @MallySeries`"
+    )
 
+    try:
         with open(portada_path, 'rb') as p:
-            bot.send_photo(
-                config.CHAT_ID, 
-                p, 
-                caption=mensaje, 
-                parse_mode='Markdown'
-            )
-        print(f"✔️ [LOG SYSTEM] Despliegue de '{nombre}' registrado.")
+            bot.send_photo(config.CHAT_ID, p, caption=mensaje, parse_mode='Markdown')
     except Exception as e:
-        print(f"❌ [CRITICAL LOG ERROR] {e}")
+        bot.send_message(config.CHAT_ID, f"⚠️ **ALERTA:** No se pudo cargar la portada.\n`{e}`")
 
 def notify_clip_sent(current, total, nombre):
-    """Envía una barra de carga visual al log por cada clip."""
+    """Reporte individual por cada segmento de video enviado."""
+    prog = int((current / total) * 100)
+    
+    msg = (
+        f"🎬 **SEGMENTO PROCESADO**\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📦 **LOTE:** `{current}/{total}`\n"
+        f"📈 **STATUS:** `{create_bar(prog)}` {prog}%\n"
+        f"💠 **ID:** `{nombre}`\n"
+        f"📡 **NODO:** `TRANSFERENCIA COMPLETA`"
+    )
     try:
-        porcentaje = int((current / total) * 100)
-        # Barra de carga visual [████░░░]
-        bar_length = 10
-        filled = int(bar_length * current // total)
-        bar = "█" * filled + "░" * (bar_length - filled)
-        
-        msg = (
-            f"📦 **PROGRESS UPDATE**\n"
-            f"🎬 Proyecto: `{nombre}`\n"
-            f"🌀 Clip: {current}/{total}\n"
-            f"⚙️ [{bar}] {porcentaje}%"
-        )
         bot.send_message(config.CHAT_ID, msg, parse_mode='Markdown')
     except:
         pass
 
-def log_error(mensaje, error_trace=""):
-    """Reporte de error estilo terminal de emergencia."""
+def mision_cumplida(nombre, total):
+    """Cierre oficial de la operación de carga."""
+    final_msg = (
+        f"🏆 **OPERACIÓN FINALIZADA**\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"👑 **PROYECTO:** `{nombre}`\n"
+        f"✅ **CLIPS:** `{total} Unidades`\n"
+        f"🔌 **ESTADO:** `STANDBY - UMBRAE`"
+    )
     try:
-        error_msg = (
-            f"⚠️ **SYSTEM ALERT - CRITICAL ERROR**\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"❌ **FALLO:** {mensaje}\n"
-            f"🔍 **TRACE:** `{error_trace[:100]}...`\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"🆘 Revisar Termux inmediatamente."
-        )
-        bot.send_message(config.CHAT_ID, error_msg, parse_mode='Markdown')
+        bot.send_message(config.CHAT_ID, final_msg, parse_mode='Markdown')
     except:
         pass
 
-def mision_cumplida(nombre):
-    """Cierre de operación con estilo."""
+def log_error(error_msg):
+    """Notificación de fallo crítico."""
+    error_report = (
+        f"🚫 **ERROR DE KERNEL**\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🛑 **FALLO:** `{error_msg}`\n"
+        f"🆘 **ACCIÓN:** Revisar logs en Termux."
+    )
     try:
-        bot.send_message(
-            config.CHAT_ID, 
-            f"👑 **MISIÓN CUMPLIDA: {nombre}**\n✅ Todos los clips están en la red."
-        )
+        bot.send_message(config.CHAT_ID, error_report, parse_mode='Markdown')
     except:
         pass
