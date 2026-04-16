@@ -1,47 +1,64 @@
-import os
-from flask import Flask, render_template, request
-import threading
-import main  # Importamos el motor lógico
+import subprocess
+import re
+import time
+import telebot
 import config
 
-app = Flask(__name__)
+# Configuración de creadores
+ADMIN_ID = "8630490789"
+bot = telebot.TeleBot(config.BOT_TOKEN)
 
-# Asegurar que la carpeta temporal existe al iniciar
-if not os.path.exists(config.TEMP_FOLDER):
-    os.makedirs(config.TEMP_FOLDER)
+def lanzar_infraestructura():
+    print("🚀 [UMBRAE CORE] Iniciando Servidor Flask...")
+    # 1. Lanzar el servidor en segundo plano
+    server_proc = subprocess.Popen(["python", "server.py"], 
+                                    stdout=subprocess.PIPE, 
+                                    stderr=subprocess.PIPE)
+    
+    time.sleep(2) # Espera a que el puerto 8000 esté listo
+    
+    print("🌍 [CLOUDFLARE] Generando Túnel Público...")
+    # 2. Lanzar el túnel y capturar la salida para extraer la URL
+    tunnel_cmd = ["cloudflared", "tunnel", "--url", "http://localhost:8000"]
+    tunnel_proc = subprocess.Popen(tunnel_cmd, 
+                                    stdout=subprocess.PIPE, 
+                                    stderr=subprocess.STDOUT, 
+                                    text=True)
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+    url_publica = None
+    
+    # 3. Escanear la salida en tiempo real para encontrar el link .trycloudflare.com
+    start_time = time.time()
+    while time.time() - start_time < 30: # Timeout de 30 segundos
+        line = tunnel_proc.stdout.readline()
+        if not line: break
+        
+        # Buscar el patrón de la URL
+        match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", line)
+        if match:
+            url_publica = match.group(0)
+            break
+            
+    if url_publica:
+        mensaje = (
+            f"👑 <b>UMBRAE STUDIO • ONLINE</b>\n\n"
+            f"🚀 Servidor sincronizado con éxito.\n"
+            f"🔗 <b>Link de Acceso:</b> {url_publica}\n\n"
+            f"📱 <i>Panel de Control Mally Series listo.</i>"
+        )
+        print(f"✅ URL Generada: {url_publica}")
+        bot.send_message(ADMIN_ID, mensaje, parse_mode="HTML")
+    else:
+        print("❌ Error al obtener el túnel de Cloudflare.")
+        bot.send_message(ADMIN_ID, "⚠️ Error crítico: No se pudo generar el túnel Cloudflare.")
 
-@app.route('/upload', methods=['POST'])
-def upload():
-    nombre = request.form.get('nombre', 'Serie Mally')
-    desc = request.form.get('descripcion', '')
-    
-    # Guardar archivos con nombres únicos para evitar choques
-    import time
-    timestamp = int(time.time())
-    p_vid = f"video_{timestamp}.mp4"
-    p_port = f"portada_{timestamp}.jpg"
-    
-    request.files['video'].save(p_vid)
-    request.files['portada'].save(p_port)
-    
-    # LANZAMIENTO SINCRONIZADO: Corremos el motor en un hilo
-    # para que la web no se quede "cargando" y el proceso siga en el terminal
-    threading.Thread(
-        target=main.motor_mallycuts_express, 
-        args=(p_vid, p_port, nombre, desc)
-    ).start()
-    
-    return f"<h1>🚀 MOTOR MALLYCUTS INICIADO</h1><p>Serie: {nombre}<br>Procesando en segundo plano...</p>"
+    try:
+        # Mantener el proceso vivo
+        tunnel_proc.wait()
+    except KeyboardInterrupt:
+        print("\n🛑 [UMBRAE] Apagando sistemas...")
+        server_proc.terminate()
+        tunnel_proc.terminate()
 
 if __name__ == "__main__":
-    print("""
-    👑 MALLY SERIES - SISTEMA OPTIMIZADO
-    ------------------------------------
-    Iniciando servidor en: http://0.0.0.0:8080
-    Modo: Sincronizado Express (Corte Directo)
-    """)
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    lanzar_infraestructura()
