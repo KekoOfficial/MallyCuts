@@ -1,11 +1,9 @@
-# marcas.py - El Sello Imperial
+# marcas.py - El Sello de Umbrae Studio
 import config
 
 def obtener_filtro_agua():
-    """Retorna la cadena de filtros para FFmpeg"""
-    # Posición: Inferior derecha (w-tw-20 : h-th-20)
-    # Estilo: Fuente de tamaño configurado y color translúcido
-    texto = config.WATERMARK_TEXT
+    """Retorna la cadena de filtros para la marca de agua"""
+    texto = config.WATERMARK_TEXT # t.me/MallySeries
     size = config.WATERMARK_SIZE
     color = config.WATERMARK_COLOR
     
@@ -14,14 +12,15 @@ def obtener_filtro_agua():
         f"x=w-tw-20:y=h-th-20:"
         f"fontsize={size}:"
         f"fontcolor={color}:"
-        f"shadowcolor=black@0.4:shadowx=2:shadowy=2"
+        f"shadowcolor=black@0.6:shadowx=2:shadowy=2"
     )
     return filtro
 
-def obtener_metadatos(n):
-    """Genera metadatos internos para el archivo de video"""
-    return {
-        "title": f"{config.WATERMARK_TEXT} - Cap {n}",
-        "artist": "Imperio MP",
-        "comment": "Procesado por MallyCuts v2.1"
-    }
+def aplicar_metadatos_cmd(n_cap):
+    """Metadatos que firman el archivo como Umbrae Studio"""
+    return [
+        '-metadata', f'title=Cap {n_cap} - {config.WATERMARK_TEXT}',
+        '-metadata', 'artist=Umbrae Studio',
+        '-metadata', 'album=Mally Series',
+        '-metadata', 'comment=Copyright © 2026 Umbrae Studio'
+    ]
