@@ -3,166 +3,89 @@ import re
 import time
 import os
 import socket
+import threading
 import telebot
 import config
+from flask import Flask # Asegúrate de que tu lógica de Flask esté aquí o se importe
 
-# --- CONFIG ---
-STAFF_IMPERIAL = {
-    "ADMIN_PRINCIPAL": "8630490789",
-    "FUNDADORES": ["8630490789"]
-}
+# --- IMPORTA AQUÍ TU APP DE FLASK ---
+# Si tu Flask está en otro archivo, por ejemplo app.py:
+# from app import app 
+# Si está aquí mismo, define 'app = Flask(__name__)' abajo.
 
+app = Flask(__name__) # Ejemplo, ajusta según tu código real
+
+@app.route('/')
+def home():
+    return "Umbrae Studio Core Online"
+
+# --- CONFIGURACIÓN DE MANDO ---
+ADMIN_ID = "8630490789"
 bot = telebot.TeleBot(config.BOT_TOKEN)
 
-PORT = 8000
-MAX_INTENTOS_TUNEL = 5
-MAX_ESPERA_FLASK = 20
-
-
-# --- UTILIDADES ---
 def check_port(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(('127.0.0.1', port)) == 0
+        return s.connect_ex(('localhost', port)) == 0
 
-
-def buscar_binario_cloudflared():
-    rutas = [
-        "/data/data/com.termux/files/usr/bin/cloudflared",
-        os.path.expanduser("~/cloudflared"),
-        "/usr/local/bin/cloudflared"
-    ]
-
+def buscar_cl():
+    rutas = ["/data/data/com.termux/files/usr/bin/cloudflared", os.path.expanduser("~/cloudflared")]
     for r in rutas:
-        if os.path.exists(r) and os.access(r, os.X_OK):
-            return r
+        if os.path.exists(r): return r
+    return "cloudflared"
 
-    try:
-        res = subprocess.run(["which", "cloudflared"], capture_output=True, text=True)
-        if res.returncode == 0:
-            return res.stdout.strip()
-    except Exception:
-        pass
-
-    return None
-
-
-def limpiar_proceso(proc):
-    if proc and proc.poll() is None:
-        proc.terminate()
-        try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-
-
-def enviar_notificacion(msg):
-    for uid in STAFF_IMPERIAL["FUNDADORES"]:
-        try:
-            bot.send_message(uid, msg, parse_mode="HTML")
-        except Exception as e:
-            print(f"❌ Error Telegram: {e}")
-
-
-# --- CORE ---
-def lanzar_core_pro():
-    server_proc = None
-    tunnel_proc = None
-
-    try:
-        print("🚀 Iniciando servidor Flask...")
-
-        log = open("server.log", "a")
-        server_proc = subprocess.Popen(
-            ["python", "server.py"],
-            stdout=log,
-            stderr=log
-        )
-
-        # --- Espera activa Flask ---
-        print("🧪 Esperando Flask...")
-        for i in range(MAX_ESPERA_FLASK):
-            if server_proc.poll() is not None:
-                print("❌ Flask se cerró inesperadamente.")
-                return
-
-            if check_port(PORT):
-                print("✅ Flask activo")
-                break
-
-            print(f"⌛ Intento {i+1}/{MAX_ESPERA_FLASK}")
-            time.sleep(1)
-        else:
-            print("❌ Flask nunca abrió el puerto.")
-            return
-
-        # --- Cloudflare ---
-        cl_path = buscar_binario_cloudflared()
-        if not cl_path:
-            print("❌ cloudflared no encontrado.")
-            return
-
-        url_publica = None
-
-        for intento in range(1, MAX_INTENTOS_TUNEL + 1):
-            print(f"🌍 Túnel intento {intento}/{MAX_INTENTOS_TUNEL}")
-
-            tunnel_proc = subprocess.Popen(
-                [cl_path, "tunnel", "--url", f"http://localhost:{PORT}"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True
+def iniciar_tunel():
+    """Esta función corre en un hilo separado"""
+    print("⏳ Esperando estabilidad del servidor para abrir túnel...")
+    time.sleep(5) # Espera a que Flask respire
+    
+    cl_path = buscar_cl()
+    url_publica = None
+    
+    for intento in range(1, 6):
+        if check_port(8000):
+            print(f"🌍 [TUNEL] Intento {intento}: Conectando con Cloudflare...")
+            proc = subprocess.Popen(
+                [cl_path, "tunnel", "--url", "http://localhost:8000"],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
             )
-
-            start = time.time()
-
-            while time.time() - start < 40:
-                if tunnel_proc.poll() is not None:
-                    print("⚠️ Túnel murió solo")
+            
+            start_t = time.time()
+            while time.time() - start_t < 40:
+                line = proc.stdout.readline()
+                if not line: break
+                match = re.search(r"https://[-a-zA-Z0-9\.]+trycloudflare\.com", line)
+                if match:
+                    url_publica = match.group(0)
                     break
-
-                line = tunnel_proc.stdout.readline()
-
-                if line:
-                    print(f"[TUNNEL] {line.strip()}")
-
-                    match = re.search(r"https://[-a-zA-Z0-9\.]+trycloudflare\.com", line)
-                    if match:
-                        url_publica = match.group(0)
-                        break
-
+            
             if url_publica:
+                mensaje = (
+                    f"👑 <b>UMBRAE STUDIO MASTER CORE</b>\n"
+                    f"───────────────────\n"
+                    f"🔗 <b>Link:</b> {url_publica}\n"
+                    f"🚀 <b>Status:</b> Sincronizado\n"
+                    f"───────────────────"
+                )
+                print(f"✅ URL GENERADA: {url_publica}")
+                bot.send_message(ADMIN_ID, mensaje, parse_mode="HTML")
                 break
-
-            limpiar_proceso(tunnel_proc)
-            time.sleep(2)
-
-        if not url_publica:
-            print("❌ No se pudo generar URL.")
-            return
-
-        # --- Notificación ---
-        mensaje = (
-            f"👑 <b>UMBRAE CORE PRO</b>\n"
-            f"───────────────────\n"
-            f"🔗 <b>{url_publica}</b>\n"
-            f"📡 ONLINE\n"
-            f"⚙️ Puerto: {PORT}\n"
-            f"───────────────────"
-        )
-
-        print(f"✅ URL: {url_publica}")
-        enviar_notificacion(mensaje)
-
-        # Mantener vivo
-        tunnel_proc.wait()
-
-    except KeyboardInterrupt:
-        print("\n🛑 Apagando...")
-
-    finally:
-        limpiar_proceso(tunnel_proc)
-        limpiar_proceso(server_proc)
-
+            else:
+                proc.terminate()
+                print("⚠️ No se detectó URL, reintentando...")
+                time.sleep(3)
+        else:
+            print(f"🔄 Puerto 8000 cerrado, reintentando... ({intento}/5)")
+            time.sleep(3)
 
 if __name__ == "__main__":
-    lanzar_core_pro()
+    # 1. Lanzamos el túnel en un hilo (Background)
+    hilo_tunel = threading.Thread(target=iniciar_tunel, daemon=True)
+    hilo_tunel.start()
+    
+    # 2. Lanzamos Flask en el hilo principal
+    print("🚀 [CORE] Lanzando Servidor Flask en Puerto 8000...")
+    try:
+        # IMPORTANTE: host 0.0.0.0 y use_reloader=False para no duplicar hilos
+        app.run(host="0.0.0.0", port=8000, debug=False, use_reloader=False)
+    except KeyboardInterrupt:
+        print("\n🛑 Apagando sistemas Umbrae...")
