@@ -13,17 +13,19 @@ class MallyLogger:
             f"🎬 <b>{self.nombre}</b>\n"
             f"🔹 Capítulo: {n} / {self.total}\n\n"
             f"✨ Disfruta en @MallySeries\n"
-            f"⚡ <i>Calidad Premium Imperio MP</i>"
+            f"⚡ <i>Creado por #UmbraeStudio</i>"
         )
 
     def final(self):
         """Genera el reporte de cierre para el canal"""
         fin = datetime.datetime.now()
         duracion = fin - self.inicio
+        tiempo_formateado = str(duracion).split('.')[0]
+        
         return (
             f"👑 <b>MISIÓN COMPLETADA</b> 👑\n\n"
-            f"🎥 Serie: {self.nombre}\n"
+            f"🎥 Serie: <b>{self.nombre}</b>\n"
             f"📦 Capítulos subidos: {self.total}\n"
-            f"⏱️ Tiempo total: {str(duracion).split('.')[0]}\n\n"
-            f"✅ Todos los archivos procesados y sincronizados."
+            f"⏱️ Tiempo total: {tiempo_formateado}\n\n"
+            f"✅ <i>Procesado y Sincronizado por Umbrae Studio.</i>"
         )
