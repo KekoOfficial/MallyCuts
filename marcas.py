@@ -1,43 +1,27 @@
-import subprocess
+# marcas.py - El Sello Imperial
 import config
 
-def aplicar_marca_agua(path_input, n):
-    path_output = f"{config.TEMP_FOLDER}/cap_{n:03d}.mp4"
+def obtener_filtro_agua():
+    """Retorna la cadena de filtros para FFmpeg"""
+    # Posición: Inferior derecha (w-tw-20 : h-th-20)
+    # Estilo: Fuente de tamaño configurado y color translúcido
+    texto = config.WATERMARK_TEXT
+    size = config.WATERMARK_SIZE
+    color = config.WATERMARK_COLOR
     
-    # --- LÓGICA ESTILO TIKTOK ---
-    # Cambia de posición cada 5 segundos.
-    # Posición 1: Arriba Izquierda | Posición 2: Abajo Derecha
-    # Aparece y desaparece (fade) suavemente.
-    
-    # x e y cambian según el tiempo 't' usando la función mod (módulo)
-    x_formula = "if(lt(mod(t,10),5), 20, w-tw-20)"
-    y_formula = "if(lt(mod(t,10),5), 20, h-th-20)"
-    
-    # Opacidad intermitente (opcional, para que parpadee como TikTok)
-    alpha_formula = "if(lt(mod(t,10),5), 0.5, 0.5)" # 50% de opacidad constante
-
     filtro = (
-        f"drawtext=text='{config.WATERMARK_TEXT}':"
-        f"x={x_formula}:y={y_formula}:"
-        f"fontcolor={config.WATERMARK_COLOR}:"
-        f"fontsize={config.WATERMARK_SIZE}:"
-        f"shadowcolor=black@0.5:shadowx=2:shadowy=2"
+        f"drawtext=text='{texto}':"
+        f"x=w-tw-20:y=h-th-20:"
+        f"fontsize={size}:"
+        f"fontcolor={color}:"
+        f"shadowcolor=black@0.4:shadowx=2:shadowy=2"
     )
-    
-    cmd = [
-        'ffmpeg', '-y', '-i', path_input,
-        '-vf', filtro,
-        '-c:v', 'libx264', 
-        '-preset', 'superfast', 
-        '-crf', '26', 
-        '-threads', '0', 
-        '-c:a', 'copy', 
-        path_output
-    ]
-    
-    try:
-        subprocess.run(cmd, check=True, capture_output=True)
-        return path_output
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error en Marcas.py: {e.stderr.decode()}")
-        raise e
+    return filtro
+
+def obtener_metadatos(n):
+    """Genera metadatos internos para el archivo de video"""
+    return {
+        "title": f"{config.WATERMARK_TEXT} - Cap {n}",
+        "artist": "Imperio MP",
+        "comment": "Procesado por MallyCuts v2.1"
+    }
