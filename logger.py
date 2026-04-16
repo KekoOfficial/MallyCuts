@@ -1,31 +1,19 @@
-# logger.py - El Cerebro de Umbrae Studio
-import datetime
+import time
+import os
+import sys
+# Importa la infraestructura unificada
+try:
+    import config as cfg
+except ImportError:
+    print("❌ Errorlogger: No se encontró config.py.")
+    sys.exit(1)
 
-class MallyLogger:
-    def __init__(self, nombre_serie, total_caps):
-        self.nombre = nombre_serie
-        self.total = total_caps
-        self.inicio = datetime.datetime.now()
-
-    def exito(self, n):
-        """Genera el caption con la identidad multi-plataforma"""
-        return (
-            f"🎬 <b>{self.nombre}</b>\n"
-            f"🔹 Capítulo: {n} / {self.total}\n\n"
-            f"📱 <b>Síguenos en:</b>\n"
-            f"• Telegram: t.me/MallySeries\n"
-            f"• TikTok: @EscenaDe15\n\n"
-            f"⚡ <i>By #UmbraeStudio</i>"
-        )
-
-    def final(self):
-        """Reporte de Misión Completada"""
-        fin = datetime.datetime.now()
-        duracion = str(fin - self.inicio).split('.')[0]
-        return (
-            f"👑 <b>MISIÓN COMPLETADA</b> 👑\n\n"
-            f"🎥 Serie: <b>{self.nombre}</b>\n"
-            f"📦 Capítulos: {self.total}\n"
-            f"⏱️ Tiempo: {duracion}\n\n"
-            f"✅ <i>Sincronización total por Umbrae Studio.</i>"
-        )
+def registrar_log(mensaje):
+    """Función de logging centralizada en config.LOG_FILE"""
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = f"[{timestamp}] 👑 {cfg.STUDIO_NAME} {mensaje}\n"
+    # Imprimir en consola de Termux
+    print(log_entry.strip())
+    # Guardar en archivo
+    with open(cfg.LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(log_entry)
