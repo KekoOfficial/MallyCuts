@@ -1,105 +1,58 @@
-import ffmpeg
-import os
-import sys
-import telebot
-import time
+from flask import Flask, render_template, jsonify
+import ffmpeg, os, sys, telebot
 
-# --- CONFIGURACIÓN INTEGRADA (Anulamos config.py externo para evitar fallos) ---
+# --- CONFIGURACIÓN DIRECTA ---
 BOT_TOKEN = "8759783698:AAFUuC67X--qXoqD4D2YQ7RYlPlHoQmoYlU"
 CHAT_ID = "-1003584710096"
-TEMP_FOLDER = "mally_studio_segments"
-CLIP_DURATION = 60
-WATERMARK_TEXT = "t.me/MallySeries"
+VIDEO_IN = "video.mp4"
+FOTO_IN = "foto.jpg"
 
-# 🚫 BLOQUEO DE RESIDUOS
 sys.dont_write_bytecode = True
 bot = telebot.TeleBot(BOT_TOKEN)
+app = Flask(__name__)
 
-def motor_imperial_directo(video_name, portada_name, serie_titulo):
-    """
-    Motor Lineal de @OliDevX: Corta -> Envía -> Siguiente.
-    """
+def motor_sakura_v10():
     try:
-        # 1. Preparación de Entorno
-        if not os.path.exists(TEMP_FOLDER):
-            os.makedirs(TEMP_FOLDER)
-            
-        v_abs = os.path.abspath(video_name)
-        p_abs = os.path.abspath(portada_name)
+        v_abs, p_abs = os.path.abspath(VIDEO_IN), os.path.abspath(FOTO_IN)
+        if not os.path.exists(v_abs): return "Video no encontrado"
 
-        if not os.path.exists(v_abs):
-            print(f"❌ Error: No encuentro el video {video_name}")
-            return
-
-        # 2. Análisis de duración
         probe = ffmpeg.probe(v_abs)
         duration = float(probe['format']['duration'])
-        total_clips = int(duration // CLIP_DURATION) + (1 if duration % CLIP_DURATION > 0 else 0)
+        total = int(duration // 60) + (1 if duration % 60 > 0 else 0)
 
-        print(f"🌸 SAKURA SYSTEM | Iniciando: {serie_titulo}")
-        print(f"📊 Total de fragmentos a generar: {total_clips}")
-
-        # 3. Ciclo de Ejecución Lineal (Corta y Manda)
-        for i in range(total_clips):
-            actual = i + 1
-            out_p = os.path.join(TEMP_FOLDER, f"clip_{actual}.mp4")
-            inicio = i * CLIP_DURATION
-
-            print(f"🎬 [{actual}/{total_clips}] Cortando...")
-
-            # --- PROCESAMIENTO FFMPEG (Blindado Anti-413) ---
-            v_in = ffmpeg.input(v_abs, ss=inicio, t=CLIP_DURATION)
-            p_in = ffmpeg.input(p_abs)
+        for i in range(total):
+            out = f"segmento_{i+1}.mp4"
             
-            # Overlay de portada (0.05s) + Marca de agua
-            v_final = ffmpeg.overlay(v_in, p_in, enable='between(t,0,0.05)')
-            v_final = v_final.drawtext(
-                text=WATERMARK_TEXT, 
-                x='main_w-text_w-15', y='main_h-text_h-15',
-                fontsize=32, fontcolor='white@0.5',
-                shadowcolor='black', shadowx=2, shadowy=2
-            )
-
-            # Salida con bitrate controlado (Aprox 30MB por clip)
-            (ffmpeg.output(v_final, v_in.audio, out_p, 
-                           vcodec='libx264', preset='ultrafast', acodec='aac',
-                           video_bitrate='3.8M', maxrate='4M', bufsize='6M',
-                           pix_fmt='yuv420p', map_metadata=-1, loglevel="error")
+            # Proceso Lineal Blindado (Anti-413)
+            (ffmpeg.input(v_abs, ss=i*60, t=60)
+             .overlay(ffmpeg.input(p_abs), enable='between(t,0,0.05)')
+             .output(out, vcodec='libx264', preset='ultrafast', acodec='aac',
+                     video_bitrate='3.8M', maxrate='4M', bufsize='6M',
+                     pix_fmt='yuv420p', map_metadata=-1, loglevel="error")
              .overwrite_output().run(quiet=True))
 
-            # --- ENVÍO AL CANAL ---
-            print(f"📤 [{actual}/{total_clips}] Enviando a Telegram...")
-            caption = (f"🎬 {serie_titulo}\n"
-                       f"💎 CAPÍTULO: {actual} / {total_clips}\n"
-                       f"✅ Contenido Verificado\n"
-                       f"🔗 @MallySeries #UmbraeStudio")
-
-            try:
-                with open(out_p, 'rb') as v:
-                    bot.send_video(CHAT_ID, v, caption=caption, 
-                                   supports_streaming=True, timeout=300)
-                print(f"✨ Clip {actual} enviado con éxito.")
-            except Exception as e:
-                print(f"💔 Error al enviar: {e}")
-
-            # Limpieza inmediata de RAM y Disco
-            if os.path.exists(out_p):
-                os.remove(out_p)
-
-        # 4. Purga Final
-        print("🧹 Limpiando archivos originales...")
+            # Envío
+            with open(out, 'rb') as f:
+                bot.send_video(CHAT_ID, f, caption=f"🎬 MALLY SERIES\n💎 CAPÍTULO: {i+1}/{total}\n🔗 @MallySeries", 
+                               supports_streaming=True, timeout=300)
+            os.remove(out)
+        
+        # Purga de originales
         os.remove(v_abs)
         os.remove(p_abs)
-        print("✅ MISIÓN CUMPLIDA. @OliDevX")
-
+        return "Misión Cumplida"
     except Exception as e:
-        print(f"❌ CRITICAL FAULT: {e}")
+        return str(e)
 
-if __name__ == "__main__":
-    # --- INTERFAZ DE USUARIO RÁPIDA ---
-    # Solo cambia estos 3 valores antes de ejecutar
-    VIDEO_ARCHIVO = "video.mp4" 
-    PORTADA_ARCHIVO = "foto.jpg"
-    TITULO_SERIE = "MALLY CUTS"
+@app.route('/')
+def home():
+    return render_template('index.html')
 
-    motor_imperial_directo(VIDEO_ARCHIVO, PORTADA_ARCHIVO, TITULO_SERIE)
+@app.route('/run', methods=['POST'])
+def run_task():
+    resultado = motor_sakura_v10()
+    return jsonify({"message": resultado})
+
+if __name__ == '__main__':
+    print("🌸 Servidor Sakura iniciado en http://localhost:5000")
+    app.run(host='0.0.0.0', port=5000)
