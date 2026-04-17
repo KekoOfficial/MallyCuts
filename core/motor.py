@@ -10,7 +10,7 @@ def get_duration(ruta_video):
             "ffprobe", "-v", "error",
             "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1",
-            ruta_video
+            ruta_entrada
         ]
         salida = subprocess.check_output(comando).decode().strip()
         return float(salida) if salida else 0
@@ -19,7 +19,7 @@ def get_duration(ruta_video):
         return 0
 
 def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, titulo):
-    """✅ MODO FORZADO: TODO SALE VERTICAL 1080x1920 | SIN DETECCIONES | SIN ERRORES"""
+    """✅ MODO FORZADO: TODO VERTICAL 1080x1920 | TEXTO PERSONALIZADO"""
     try:
         comando = [
             "ffmpeg", "-y",
@@ -33,7 +33,7 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             f"[vid]pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black[bg];"
             f"[1:v]scale=w=400:h=-1[logo];"
             f"[bg][logo]overlay=(W-w)/2:30[outv]",
-            # CONFIGURACIÓN DE SALIDA SEGURA
+            # CONFIGURACIÓN SEGURA
             "-map", "[outv]",
             "-map", "0:a",
             "-c:v", "libx264",
@@ -56,7 +56,14 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
 
         if os.path.exists(ruta_salida) and os.path.getsize(ruta_salida) > 300000:
             log.info(f"✅ Parte {parte} generada correctamente")
-            return f"🎬 {titulo}\n💎 PARTE {parte} DE {total}\n🔗 @MallySeries"
+            
+            # 📝 TEXTO EXACTO QUE PEDISTE
+            return (
+                f"🎬 {titulo}\n"
+                f"💎 CAPÍTULO: {parte} / {total}\n"
+                f"✅ Contenido Verificado\n"
+                f"🔗 @MallySeries"
+            )
         else:
             log.error(f"❌ Archivo vacío o muy pequeño: {ruta_salida}")
             return None
