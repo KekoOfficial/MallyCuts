@@ -4,46 +4,65 @@ from cortar import ejecutar_corte
 from enviar import encolar_video
 
 app = Flask(__name__)
-os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
 
-def flujo_produccion(ruta_v, nombre_s):
-    # 1. Obtener duración real con ffprobe
-    cmd = f"ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 {ruta_v}"
-    duracion = float(subprocess.check_output(cmd, shell=True))
+# Asegurar carpetas de trabajo
+os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(config.PORTADA_FOLDER, exist_ok=True)
+
+def flujo_produccion(ruta_v, ruta_p, nombre_s):
+    print(f"\n[🚀] INICIANDO SISTEMA: {nombre_s}")
     
-    total_partes = int(duracion // 60) + (1 if duracion % 60 > 0 else 0)
-    
-    # 2. Bucle de corte (Esto es rápido)
+    try:
+        # Medir duración del video
+        cmd = f"ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"{ruta_v}\""
+        duracion = float(subprocess.check_output(cmd, shell=True))
+        total_partes = int(duracion // 60) + (1 if duracion % 60 > 0 else 0)
+        print(f"[📊] Info: {duracion}s | Partes: {total_partes}")
+    except Exception as e:
+        print(f"[❌] Error de ffprobe: {e}")
+        return
+
     for i in range(total_partes):
         inicio = i * 60
         n_parte = i + 1
         ruta_out = os.path.join(config.UPLOAD_FOLDER, f"p{n_parte}_{os.path.basename(ruta_v)}")
         
-        # Cortamos
-        caption = ejecutar_corte(ruta_v, ruta_out, inicio, n_parte, total_partes, nombre_s)
+        print(f"[✂️] Cortando Parte {n_parte}/{total_partes}...")
         
-        # Encolamos (el worker se encarga del orden)
+        # Llamada al motor de corte pasándole la portada seleccionada
+        caption = ejecutar_corte(ruta_v, ruta_out, inicio, n_parte, total_partes, nombre_s, ruta_p)
+        
+        # Enviar a la cola de Telegram
         encolar_video(ruta_out, caption)
 
-    # Al finalizar de encordar todo, borramos el original
-    # os.remove(ruta_v) 
+    print(f"[✅] {nombre_s} procesada y encolada.\n")
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/", methods=["GET"])
 def index():
-    if request.method == "POST":
-        archivo = request.files.get("video")
-        nombre = request.form.get("nombre", "Serie Sin Nombre")
-        
-        if archivo:
-            ruta = os.path.join(config.UPLOAD_FOLDER, archivo.filename)
-            archivo.save(ruta)
-            
-            # Lanzamos el proceso en un hilo separado para no bloquear la web
-            threading.Thread(target=flujo_produccion, args=(ruta, nombre)).start()
-            
-            return jsonify({"status": "procesando", "msg": f"🚀 {nombre} está en producción..."})
-
     return render_template("index.html")
+
+@app.route("/run", methods=["POST"])
+def run_task():
+    video = request.files.get("video")
+    portada = request.files.get("portada")
+    nombre = request.form.get("nombre", "Mally Series")
+
+    if video and portada:
+        # Guardar archivos temporales
+        path_v = os.path.join(config.UPLOAD_FOLDER, video.filename)
+        video.save(path_v)
+        
+        path_p = os.path.join(config.PORTADA_FOLDER, "temp_portada.jpg")
+        portada.save(path_p)
+        
+        print(f"[📂] Recibido: {video.filename} + Portada")
+
+        # Iniciar proceso en segundo plano
+        threading.Thread(target=flujo_produccion, args=(path_v, path_p, nombre)).start()
+        
+        return jsonify({"message": "🚀 ¡Producción iniciada! Revisa la consola y Telegram."})
+
+    return jsonify({"message": "❌ Error: Falta video o portada"}), 400
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
