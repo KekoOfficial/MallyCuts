@@ -3,7 +3,6 @@ import os
 from config import *
 from core.logger import log
 
-# ✅ ESTA FUNCIÓN DEBE LLAMARSE ASÍ
 def get_duration(ruta_video):
     """Obtiene duración total del video en segundos"""
     try:
@@ -19,7 +18,7 @@ def get_duration(ruta_video):
         return 0
 
 def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, titulo):
-    """Versión ULTRA ESTABLE: Corta, escala y pone portada"""
+    """✅ VERSION VERTICAL: Ocupa toda la pantalla, portada arriba pequeña"""
     try:
         comando = [
             "ffmpeg", "-y",
@@ -27,10 +26,13 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             "-t", str(DURACION_POR_PARTE),
             "-i", ruta_entrada,
             "-i", ruta_portada,
+            # 👇 MAGIA PARA VERTICAL: Escala a 1080x1920 (Modo Celular)
             "-filter_complex",
-            f"[0:v]scale={RESOLUCION}:force_original_aspect_ratio=decrease,pad={RESOLUCION}:(ow-iw)/2:(oh-ih)/2,setsar=1[video];"
-            f"[1:v]scale=w=200:h=-1[logo];"
-            f"[video][logo]overlay=10:10[outv]",
+            f"[0:v]scale=1080:1920:force_original_aspect_ratio=decrease[vid];"
+            f"[vid]pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black[bg];"
+            f"[1:v]scale=w=400:h=-1[logo];"
+            f"[bg][logo]overlay=(W-w)/2:30[outv]",
+            # CONFIGURACIÓN DE SALIDA
             "-map", "[outv]",
             "-map", "0:a",
             "-c:v", CODEC_VIDEO,
