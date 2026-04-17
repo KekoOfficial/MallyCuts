@@ -12,38 +12,43 @@ def get_duration(ruta_video):
             "-of", "default=noprint_wrappers=1:nokey=1",
             ruta_video
         ]
-        return float(subprocess.check_output(comando).decode().strip())
+        salida = subprocess.check_output(comando).decode().strip()
+        return float(salida) if salida else 0
     except Exception as e:
         log.error(f"No se pudo leer duración: {e}")
         return 0
 
 def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, titulo):
-    """✅ VERSION ULTRA OPTIMIZADA: DETECTA VERTICAL / HORIZONTAL AUTOMÁTICAMENTE"""
+    """✅ VERSION ULTRA ESTABLE Y OPTIMIZADA: DETECTA VERTICAL / HORIZONTAL"""
     try:
-        # 🔍 PRIMERO DETECTAMOS LA RESOLUCIÓN ORIGINAL
+        # 🔍 DETECTAR RESOLUCIÓN CON PROTECCIÓN
         probe_cmd = [
             "ffprobe", "-v", "error",
             "-select_streams", "v:0",
             "-show_entries", "stream=width,height",
-            "-of", "csv=s=x:p=0",
-            ruta_entrada
+            "-of", "csv=s=x:p=0"
         ]
-        res = subprocess.check_output(probe_cmd).decode().strip()
-        w, h = map(int, res.split('x'))
+        res = subprocess.check_output(probe_cmd + [ruta_entrada]).decode().strip()
+        
+        # 🛡️ SI ESTÁ VACÍO O FALLA, USAMOS VALORES POR DEFECTO
+        if not res or 'x' not in res:
+            w, h = 1920, 1080
+        else:
+            w, h = map(int, res.split('x'))
 
-        # 🧠 DECIDIMOS FORMATO FINAL
-        if h > w:  # ES VERTICAL
-            RES_FINAL = "1080:1920"
+        # 🧠 ELEGIR FORMATO
+        if h > w:
+            # VERTICAL
             escala_video = f"scale=w=1080:h=1920:force_original_aspect_ratio=decrease[vid];[vid]pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black[bg]"
             escala_logo = "scale=w=400:h=-1[logo]"
             posicion_logo = "overlay=(W-w)/2:30[outv]"
-        else:      # ES HORIZONTAL
-            RES_FINAL = "1920:1080"
+        else:
+            # HORIZONTAL
             escala_video = f"scale=w=1920:h=1080:force_original_aspect_ratio=decrease[vid];[vid]pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black[bg]"
             escala_logo = "scale=w=350:h=-1[logo]"
             posicion_logo = "overlay=(W-w)/2:20[outv]"
 
-        # 🚀 COMANDO FINAL
+        # 🚀 EJECUTAR CORTE
         comando = [
             "ffmpeg", "-y",
             "-ss", str(inicio),
@@ -81,6 +86,9 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
 
     except subprocess.CalledProcessError as e:
         log.error(f"💥 Error FFmpeg Parte {parte}: {e.stderr.decode()}")
+        return None
+    except ValueError as e:
+        log.error(f"❌ Error de datos Parte {parte}: {str(e)}")
         return None
     except Exception as e:
         log.error(f"❌ Error general Parte {parte}: {str(e)}")
