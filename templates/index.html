@@ -1,71 +1,43 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MALLY SERIES STUDIO</title>
+    <title>MALLY CUTS PRO</title>
     <style>
-        :root { --sakura: #ff00ff; --bg: #000; --green: #00ff00; }
-        body { 
-            background: var(--bg); color: #fff; font-family: 'Courier New', monospace; 
-            margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh;
-        }
-        .panel {
-            width: 85%; max-width: 400px; padding: 25px;
-            border: 2px solid var(--sakura); border-radius: 15px;
-            box-shadow: 0 0 15px var(--sakura); text-align: center;
-        }
-        h1 { font-size: 1.1rem; color: var(--sakura); margin-bottom: 25px; letter-spacing: 2px; }
-        input[type="text"] {
-            width: 100%; padding: 12px; background: transparent; 
-            border: 1px solid var(--green); color: var(--green);
-            border-radius: 8px; margin-bottom: 15px; box-sizing: border-box;
-            outline: none; text-align: center;
-        }
-        .file-box {
-            display: block; width: 100%; padding: 15px; border: 1px dashed var(--green);
-            color: var(--green); border-radius: 8px; cursor: pointer; margin-bottom: 20px;
-            font-size: 0.8rem; box-sizing: border-box;
-        }
-        #videoInput { display: none; }
-        .btn-run {
-            width: 100%; padding: 15px; background: var(--sakura); color: #000;
-            border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
-            text-transform: uppercase;
-        }
-        .btn-run:disabled { background: #444; color: #888; }
+        body { background: #000; color: #00ff00; font-family: 'Courier New', monospace; text-align: center; }
+        .card { border: 2px solid #ff00ff; margin: 50px auto; width: 90%; max-width: 400px; padding: 20px; border-radius: 15px; box-shadow: 0 0 20px #ff00ff; }
+        input, button { width: 100%; padding: 15px; margin: 10px 0; border-radius: 10px; box-sizing: border-box; }
+        input { background: #111; border: 1px solid #00ff00; color: #00ff00; }
+        button { background: #ff00ff; color: #000; font-weight: bold; border: none; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="panel">
-        <h1>MALLY SERIES STUDIO</h1>
-        <input type="text" id="serieName" placeholder="NOMBRE DE LA SERIE">
-        
-        <label for="videoInput" class="file-box" id="label">📹 SELECCIONAR VIDEO</label>
-        <input type="file" id="videoInput" accept="video/*">
-
-        <button id="go" class="btn-run" onclick="start()">INICIAR PRODUCCIÓN</button>
+    <div class="card">
+        <h1>Mally Cuts PRO 😈</h1>
+        <form id="uploadForm">
+            <input type="text" id="nombre" placeholder="Nombre de la Serie" required>
+            <input type="file" id="video" accept="video/*" required>
+            <button type="submit">DESPLEGAR SISTEMA</button>
+        </form>
+        <div id="status"></div>
     </div>
 
     <script>
-        const input = document.getElementById('videoInput');
-        input.onchange = () => { if(input.files[0]) document.getElementById('label').innerText = "✅ " + input.files[0].name; };
-
-        function start() {
-            const name = document.getElementById('serieName').value;
-            if(!name || !input.files[0]) return alert("Falta nombre o video");
-
-            const btn = document.getElementById('go');
-            btn.disabled = true; btn.innerText = "PROCESANDO...";
-
+        document.getElementById('uploadForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true; btn.innerText = "SUBIENDO...";
+            
             const fd = new FormData();
-            fd.append('video', input.files[0]);
-            fd.append('name', name);
+            fd.append('video', document.getElementById('video').files[0]);
+            fd.append('nombre', document.getElementById('nombre').value);
 
-            fetch('/run', { method: 'POST', body: fd })
-            .then(r => r.json()).then(d => alert(d.message))
-            .finally(() => location.reload());
-        }
+            const res = await fetch('/', { method: 'POST', body: fd });
+            const data = await res.json();
+            document.getElementById('status').innerText = data.msg;
+            btn.innerText = "EN COLA ✅";
+        };
     </script>
 </body>
 </html>
