@@ -18,8 +18,9 @@ def get_duration(ruta_video):
         return 0
 
 def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, titulo):
-    """Corta y superpone portada con calidad máxima"""
+    """Corta y superpone portada asegurando que haya video visible"""
     try:
+        # COMANDO CORREGIDO: Asegura salida de video y formato compatible
         comando = [
             "ffmpeg", "-y",
             "-ss", str(inicio),
@@ -27,12 +28,15 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             "-i", ruta_entrada,
             "-i", ruta_portada,
             "-filter_complex",
-            f"[0:v]scale={RESOLUCION}[vid];[1:v]scale=w=iw*min(1920/iw\\,1080/ih):h=ih*min(1920/iw\\,1080/ih)[img];[vid][img]overlay=shortest=1:format=yuv420[v]",
+            f"[0:v]scale={RESOLUCION}:force_original_aspect_ratio=decrease,pad={RESOLUCION}:(ow-iw)/2:(oh-ih)/2,setsar=1[bg];"
+            f"[1:v]scale=w=iw*min(1.0\\,ih*0.2/ih):h=ih*min(1.0\\,iw*0.2/iw)[logo];"
+            f"[bg][logo]overlay=W-w-10:10:format=auto[v]",
             "-map", "[v]",
             "-map", "0:a?",
             "-c:v", CODEC_VIDEO,
             "-preset", PRESET,
             "-crf", CRF_QUALITY,
+            "-pix_fmt", "yuv420p",
             "-c:a", CODEC_AUDIO,
             "-b:a", BITRATE_AUDIO,
             "-movflags", "+faststart",
@@ -47,10 +51,11 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             timeout=TIMEOUT_FFMPEG
         )
         
-        if os.path.exists(ruta_salida) and os.path.getsize(ruta_salida) > 50000:
+        # Verificar que el archivo tenga tamaño suficiente
+        if os.path.exists(ruta_salida) and os.path.getsize(ruta_salida) > 100000: # Mínimo 100KB
             return f"🎬 {titulo}\n💎 PARTE {parte} DE {total}\n🔗 @MallySeries"
         else:
-            log.error(f"Archivo generado está vacío o corrupto: {ruta_salida}")
+            log.error(f"Archivo generado es demasiado pequeño o vacío: {ruta_salida}")
             return None
             
     except subprocess.TimeoutExpired:
