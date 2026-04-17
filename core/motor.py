@@ -26,20 +26,20 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             "-t", str(DURACION_POR_PARTE),
             "-i", ruta_entrada,
             "-i", ruta_portada,
-            # 👇 FORMATO 16:9 PERO ADAPTATIVO
+            # FILTRO ADAPTATIVO
             "-filter_complex",
             f"[0:v]scale=1920:1080:force_original_aspect_ratio=increase[vid];"
             f"[vid]crop=1920:1080:((iw-1920)/2):((ih-1080)/2)[bg];"
             f"[1:v]scale=w=350:h=-1[logo];"
             f"[bg][logo]overlay=(W-w)/2:20:format=yuv420[outv]",
-            # 👇 CONFIGURACIÓN QUE SI FUNCIONA EN TELEGRAM
+            # CONFIGURACIÓN DE SALIDA
             "-map", "[outv]",
             "-map", "0:a",
-            "-c:v", libx264",
+            "-c:v", "libx264",
             "-preset", PRESET,
             "-crf", CRF_QUALITY,
             "-pix_fmt", "yuv420p",
-            "-c:a", aac",
+            "-c:a", "aac",
             "-b:a", "128k",
             "-movflags", "+faststart",
             ruta_salida
