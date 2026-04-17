@@ -18,21 +18,40 @@ def get_duration(ruta_video):
         return 0
 
 def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, titulo):
-    """✅ VERSION FINAL: Se ve bien en VERTICAL y HORIZONTAL | REPRODUCE EN TELEGRAM"""
+    """✅ VERSION ULTRA OPTIMIZADA: DETECTA VERTICAL / HORIZONTAL AUTOMÁTICAMENTE"""
     try:
+        # 🔍 PRIMERO DETECTAMOS LA RESOLUCIÓN ORIGINAL
+        probe_cmd = [
+            "ffprobe", "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=width,height",
+            "-of", "csv=s=x:p=0",
+            ruta_entrada
+        ]
+        res = subprocess.check_output(probe_cmd).decode().strip()
+        w, h = map(int, res.split('x'))
+
+        # 🧠 DECIDIMOS FORMATO FINAL
+        if h > w:  # ES VERTICAL
+            RES_FINAL = "1080:1920"
+            escala_video = f"scale=w=1080:h=1920:force_original_aspect_ratio=decrease[vid];[vid]pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black[bg]"
+            escala_logo = "scale=w=400:h=-1[logo]"
+            posicion_logo = "overlay=(W-w)/2:30[outv]"
+        else:      # ES HORIZONTAL
+            RES_FINAL = "1920:1080"
+            escala_video = f"scale=w=1920:h=1080:force_original_aspect_ratio=decrease[vid];[vid]pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black[bg]"
+            escala_logo = "scale=w=350:h=-1[logo]"
+            posicion_logo = "overlay=(W-w)/2:20[outv]"
+
+        # 🚀 COMANDO FINAL
         comando = [
             "ffmpeg", "-y",
             "-ss", str(inicio),
             "-t", str(DURACION_POR_PARTE),
             "-i", ruta_entrada,
             "-i", ruta_portada,
-            # FILTRO ADAPTATIVO
             "-filter_complex",
-            f"[0:v]scale=1920:1080:force_original_aspect_ratio=increase[vid];"
-            f"[vid]crop=1920:1080:((iw-1920)/2):((ih-1080)/2)[bg];"
-            f"[1:v]scale=w=350:h=-1[logo];"
-            f"[bg][logo]overlay=(W-w)/2:20:format=yuv420[outv]",
-            # CONFIGURACIÓN DE SALIDA
+            f"{escala_video};{escala_logo};[bg][logo]{posicion_logo}",
             "-map", "[outv]",
             "-map", "0:a",
             "-c:v", "libx264",
