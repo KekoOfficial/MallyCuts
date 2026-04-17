@@ -142,4 +142,4 @@ if __name__ == "__main__":
     executor = ProcessPoolExecutor(max_workers=config.MAX_WORKERS)
     
     print(f"🔥 Mally Cuts Pro corriendo en puerto 5000...")
-    app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
+    app.run(host="0.0.0.0", port=8000, debug=False, use_reloader=False)
