@@ -19,44 +19,21 @@ def get_duration(ruta_video):
         return 0
 
 def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, titulo):
-    """✅ VERSION ULTRA ESTABLE Y OPTIMIZADA: DETECTA VERTICAL / HORIZONTAL"""
+    """✅ MODO FORZADO: TODO SALE VERTICAL 1080x1920 | SIN DETECCIONES | SIN ERRORES"""
     try:
-        # 🔍 DETECTAR RESOLUCIÓN CON PROTECCIÓN
-        probe_cmd = [
-            "ffprobe", "-v", "error",
-            "-select_streams", "v:0",
-            "-show_entries", "stream=width,height",
-            "-of", "csv=s=x:p=0"
-        ]
-        res = subprocess.check_output(probe_cmd + [ruta_entrada]).decode().strip()
-        
-        # 🛡️ SI ESTÁ VACÍO O FALLA, USAMOS VALORES POR DEFECTO
-        if not res or 'x' not in res:
-            w, h = 1920, 1080
-        else:
-            w, h = map(int, res.split('x'))
-
-        # 🧠 ELEGIR FORMATO
-        if h > w:
-            # VERTICAL
-            escala_video = f"scale=w=1080:h=1920:force_original_aspect_ratio=decrease[vid];[vid]pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black[bg]"
-            escala_logo = "scale=w=400:h=-1[logo]"
-            posicion_logo = "overlay=(W-w)/2:30[outv]"
-        else:
-            # HORIZONTAL
-            escala_video = f"scale=w=1920:h=1080:force_original_aspect_ratio=decrease[vid];[vid]pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black[bg]"
-            escala_logo = "scale=w=350:h=-1[logo]"
-            posicion_logo = "overlay=(W-w)/2:20[outv]"
-
-        # 🚀 EJECUTAR CORTE
         comando = [
             "ffmpeg", "-y",
             "-ss", str(inicio),
             "-t", str(DURACION_POR_PARTE),
             "-i", ruta_entrada,
             "-i", ruta_portada,
+            # 🚀 FORMATO VERTICAL FORZADO
             "-filter_complex",
-            f"{escala_video};{escala_logo};[bg][logo]{posicion_logo}",
+            f"[0:v]scale=1080:1920:force_original_aspect_ratio=decrease[vid];"
+            f"[vid]pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black[bg];"
+            f"[1:v]scale=w=400:h=-1[logo];"
+            f"[bg][logo]overlay=(W-w)/2:30[outv]",
+            # CONFIGURACIÓN DE SALIDA SEGURA
             "-map", "[outv]",
             "-map", "0:a",
             "-c:v", "libx264",
@@ -86,9 +63,6 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
 
     except subprocess.CalledProcessError as e:
         log.error(f"💥 Error FFmpeg Parte {parte}: {e.stderr.decode()}")
-        return None
-    except ValueError as e:
-        log.error(f"❌ Error de datos Parte {parte}: {str(e)}")
         return None
     except Exception as e:
         log.error(f"❌ Error general Parte {parte}: {str(e)}")
