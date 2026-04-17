@@ -1,32 +1,38 @@
 from flask import Flask, render_template, jsonify, request
-import os, cortes, enviar
+import os, ffmpeg, config, cortes, enviar
 
 app = Flask(__name__)
-UPLOAD_FOLDER = 'uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Asegurar carpetas
+for d in [config.UPLOAD_DIR, config.TEMP_DIR]:
+    os.makedirs(d, exist_ok=True)
 
 @app.route('/')
 def home():
     return render_template('index.html')
 
 @app.route('/run', methods=['POST'])
-def run_task():
-    # Recibimos el archivo y el nombre
-    file = request.files['video']
-    serie_name = request.form['serie_name']
+def run():
+    v_file = request.files['video']
+    s_name = request.form['name']
     
-    # Guardamos el video en la carpeta uploads
-    video_path = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(video_path)
+    path_orig = os.path.join(config.UPLOAD_DIR, v_file.filename)
+    v_file.save(path_orig)
     
-    # Ejecutamos la lógica de cortes (usando el motor que ya tienes)
-    # Aquí puedes llamar a tu función de cortes.py pasando 'video_path'
-    resultado = motor_sakura_v10(video_path, serie_name)
-    
-    # Limpiamos el original después de procesar
-    if os.path.exists(video_path): os.remove(video_path)
-    
-    return jsonify({"message": resultado})
+    # Obtener info
+    probe = ffmpeg.probe(path_orig)
+    duracion = float(probe['format']['duration'])
+    partes = int(duracion // 60) + (1 if duracion % 60 > 0 else 0)
+
+    for i in range(partes):
+        out_clip = os.path.join(config.TEMP_DIR, f"clip_{i+1}.mp4")
+        if cortes.procesar_segmento(path_orig, i*60, 60, out_clip):
+            cap = f"🎬 {s_name}\n💎 CAPÍTULO: {i+1}/{partes}\n🔗 @MallySeries"
+            enviar.enviar_video(out_clip, cap)
+            if os.path.exists(out_clip): os.remove(out_clip)
+
+    os.remove(path_orig)
+    return jsonify({"message": f"Finalizado: {s_name}"})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=config.PORT)
