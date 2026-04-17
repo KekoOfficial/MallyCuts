@@ -5,68 +5,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SAKURA SYSTEM V10</title>
     <style>
-        :root {
-            --bg: #0a0a0a;
-            --sakura: #ffb7c5;
-            --text: #e0e0e0;
-            --accent: #1a1a1a;
+        :root { --bg: #0a0a0a; --sakura: #ffb7c5; --text: #e0e0e0; --accent: #1a1a1a; }
+        body { 
+            background-color: var(--bg); color: var(--text); 
+            font-family: 'Segoe UI', sans-serif; display: flex; 
+            justify-content: center; align-items: center; 
+            height: 100vh; margin: 0; text-transform: uppercase; letter-spacing: 2px;
         }
-
-        body {
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+        .container { 
+            border: 1px solid var(--sakura); padding: 40px; 
+            background: var(--accent); box-shadow: 0 0 20px rgba(255, 183, 197, 0.2); 
+            text-align: center; border-radius: 4px; 
         }
-
-        .container {
-            border: 1px solid var(--sakura);
-            padding: 40px;
-            background: var(--accent);
-            box-shadow: 0 0 20px rgba(255, 183, 197, 0.2);
-            text-align: center;
-            border-radius: 4px;
+        h1 { color: var(--sakura); font-size: 1.5rem; margin-bottom: 20px; }
+        .status { font-size: 0.8rem; color: #888; margin: 5px 0; }
+        .status b { color: #00ff00; }
+        button {
+            background: none; border: 1px solid var(--sakura); 
+            color: var(--sakura); padding: 12px 25px; cursor: pointer; 
+            margin-top: 25px; font-weight: bold; transition: 0.3s;
         }
-
-        h1 {
-            color: var(--sakura);
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-        }
-
-        .status {
-            font-size: 0.8rem;
-            color: #888;
-        }
-
-        .status b {
-            color: #00ff00;
-        }
-
-        .footer {
-            margin-top: 30px;
-            font-size: 0.7rem;
-            opacity: 0.5;
-        }
+        button:hover { background: var(--sakura); color: var(--bg); }
+        button:disabled { border-color: #444; color: #444; cursor: not-allowed; }
+        .footer { margin-top: 30px; font-size: 0.7rem; opacity: 0.5; }
     </style>
 </head>
 <body>
-
     <div class="container">
         <h1>🌸 Sakura Core V10</h1>
-        <div class="status">System Status: <b>Online</b></div>
+        <div class="status">System Status: <b id="state">Online</b></div>
         <div class="status">Operator: @OliDevX</div>
         
-        <div class="footer">
-            Mally Series | Umbrae Studio
-        </div>
+        <button id="runBtn" onclick="desplegar()">Iniciar Despliegue</button>
+        
+        <div class="footer">Mally Series | Umbrae Studio</div>
     </div>
 
+    <script>
+        function desplegar() {
+            const btn = document.getElementById('runBtn');
+            const state = document.getElementById('state');
+            
+            btn.disabled = true;
+            btn.innerText = "PROCESANDO...";
+            state.innerText = "BUSY";
+            state.style.color = "yellow";
+
+            fetch('/run', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                btn.disabled = false;
+                btn.innerText = "Iniciar Despliegue";
+                state.innerText = "Online";
+                state.style.color = "#00ff00";
+            })
+            .catch(err => alert("Fallo en la conexión"));
+        }
+    </script>
 </body>
 </html>
