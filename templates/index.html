@@ -3,292 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UMBRAE STUDIO • MALLYCUTS V3.1</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <title>SAKURA SYSTEM V10</title>
     <style>
         :root {
-            --primary: #bc00ff;
-            --accent: #00f2ff;
-            --bg-dark: #020202;
-            --glass: rgba(15, 15, 15, 0.85);
-            --border: rgba(188, 0, 255, 0.2);
-            --font-main: 'Rajdhani', sans-serif;
-            --font-tech: 'Orbitron', sans-serif;
+            --bg: #0a0a0a;
+            --sakura: #ffb7c5;
+            --text: #e0e0e0;
+            --accent: #1a1a1a;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         body {
-            background: var(--bg-dark);
-            color: #fff;
-            font-family: var(--font-main);
-            min-height: 100vh;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
-        }
-
-        /* BACKGROUND ANIMATION */
-        .stars-bg {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle at 50% 50%, #1a0033 0%, #020202 100%);
-            z-index: -1;
-        }
-
-        .grid {
-            position: absolute;
-            width: 200%; height: 200%;
-            background-image: linear-gradient(var(--border) 1px, transparent 1px), 
-                              linear-gradient(90deg, var(--border) 1px, transparent 1px);
-            background-size: 50px 50px;
-            transform: perspective(500px) rotateX(60deg) translateY(-100px);
-            animation: move-grid 15s linear infinite;
-            opacity: 0.3;
-        }
-
-        @keyframes move-grid { 0% { transform: perspective(500px) rotateX(60deg) translateY(0); } 100% { transform: perspective(500px) rotateX(60deg) translateY(50px); } }
-
-        /* MAIN CONTAINER */
-        .panel {
-            width: 90%;
-            max-width: 500px;
-            background: var(--glass);
-            border: 1px solid var(--border);
-            border-radius: 40px;
-            padding: 40px;
-            backdrop-filter: blur(25px);
-            box-shadow: 0 0 40px rgba(188, 0, 255, 0.15), inset 0 0 20px rgba(0, 0, 0, 0.5);
-            position: relative;
-            z-index: 10;
-        }
-
-        /* HEADER & LOGO */
-        .header { text-align: center; margin-bottom: 30px; }
-
-        .logo-wrapper {
-            position: relative;
-            display: inline-block;
-            margin-bottom: 15px;
-        }
-
-        .logo-img {
-            width: 140px;
-            filter: drop-shadow(0 0 20px var(--primary));
-            animation: float 4s ease-in-out infinite;
-        }
-
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
-
-        .header h1 {
-            font-family: var(--font-tech);
-            font-size: 2rem;
-            letter-spacing: 10px;
-            background: linear-gradient(to right, #fff, var(--primary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin: 10px 0;
-        }
-
-        .header span {
-            font-size: 0.7rem;
-            letter-spacing: 4px;
-            color: var(--accent);
+            height: 100vh;
+            margin: 0;
             text-transform: uppercase;
-            opacity: 0.8;
-        }
-
-        /* FORM FIELD DESIGN */
-        .field { margin-bottom: 20px; }
-
-        label {
-            font-size: 0.7rem;
             letter-spacing: 2px;
-            color: #888;
-            display: block;
-            margin-bottom: 8px;
-            padding-left: 10px;
         }
 
-        .input-box {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 15px;
-            transition: 0.3s;
-        }
-
-        .input-box:focus-within {
-            border-color: var(--primary);
-            box-shadow: 0 0 15px rgba(188, 0, 255, 0.2);
-        }
-
-        input, textarea {
-            width: 100%;
-            background: transparent;
-            border: none;
-            padding: 15px;
-            color: #fff;
-            font-family: inherit;
-            outline: none;
-            font-size: 1rem;
-        }
-
-        /* FILE UPLOAD GRID */
-        .assets-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-
-        .asset-btn {
-            background: rgba(188, 0, 255, 0.05);
-            border: 1px dashed var(--border);
-            border-radius: 15px;
-            padding: 20px 10px;
-            text-align: center;
-            cursor: pointer;
-            transition: 0.4s;
-            position: relative;
-        }
-
-        .asset-btn:hover { background: rgba(188, 0, 255, 0.1); border-color: var(--accent); }
-
-        .asset-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-
-        .asset-btn i { font-size: 1.5rem; display: block; margin-bottom: 5px; }
-
-        .asset-btn p { font-size: 0.65rem; font-weight: bold; color: #666; letter-spacing: 1px; }
-
-        /* DEPLOY BUTTON */
-        .btn-deploy {
-            width: 100%;
-            padding: 20px;
-            background: linear-gradient(45deg, var(--primary), #5a007a);
-            border: none;
-            border-radius: 18px;
-            color: #fff;
-            font-family: var(--font-tech);
-            font-weight: 900;
-            letter-spacing: 5px;
-            cursor: pointer;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            transition: 0.4s;
-        }
-
-        .btn-deploy:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 0 30px var(--primary);
-            letter-spacing: 7px;
-        }
-
-        /* LOADING SCREEN */
-        #loading {
-            display: none;
-            text-align: center;
-        }
-
-        .scanner {
-            width: 100%;
-            height: 2px;
+        .container {
+            border: 1px solid var(--sakura);
+            padding: 40px;
             background: var(--accent);
-            box-shadow: 0 0 15px var(--accent);
-            position: relative;
-            animation: scan 2s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(255, 183, 197, 0.2);
+            text-align: center;
+            border-radius: 4px;
         }
 
-        @keyframes scan { 0%, 100% { top: 0; } 50% { top: 20px; } }
+        h1 {
+            color: var(--sakura);
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
 
-        .status-text {
-            font-family: var(--font-tech);
-            color: var(--accent);
+        .status {
             font-size: 0.8rem;
-            margin-top: 20px;
-            letter-spacing: 3px;
+            color: #888;
+        }
+
+        .status b {
+            color: #00ff00;
         }
 
         .footer {
             margin-top: 30px;
-            text-align: center;
-            font-family: var(--font-tech);
-            font-size: 0.6rem;
-            color: rgba(255, 255, 255, 0.2);
-            letter-spacing: 6px;
+            font-size: 0.7rem;
+            opacity: 0.5;
         }
     </style>
 </head>
 <body>
 
-<div class="stars-bg">
-    <div class="grid"></div>
-</div>
-
-<div class="panel">
-    <div class="header">
-        <div class="logo-wrapper">
-            <img src="/static/1000547607.png" class="logo-img" alt="Umbrae Logo">
+    <div class="container">
+        <h1>🌸 Sakura Core V10</h1>
+        <div class="status">System Status: <b>Online</b></div>
+        <div class="status">Operator: @OliDevX</div>
+        
+        <div class="footer">
+            Mally Series | Umbrae Studio
         </div>
-        <h1>MALLYCUTS</h1>
-        <span>SYSTEM VERSION 3.1 • BY NOA</span>
     </div>
-
-    <form id="mallyForm" action="/upload" method="post" enctype="multipart/form-data">
-        <div class="field">
-            <label>PROJECT IDENTIFIER</label>
-            <div class="input-box">
-                <input type="text" name="nombre" placeholder="Nombre del proyecto..." required>
-            </div>
-        </div>
-
-        <div class="field">
-            <label>MISSION DESCRIPTION</label>
-            <div class="input-box">
-                <textarea name="descripcion" rows="2" placeholder="SINOPSIS..."></textarea>
-            </div>
-        </div>
-
-        <div class="assets-grid">
-            <div class="asset-btn">
-                <i>🖼️</i>
-                <p id="pText">PORTADA JPG</p>
-                <input type="file" name="portada" accept="image/*" required onchange="u(this, 'pText')">
-            </div>
-            <div class="asset-btn">
-                <i>🎥</i>
-                <p id="vText">MASTER VIDEO</p>
-                <input type="file" name="video" accept="video/*" required onchange="u(this, 'vText')">
-            </div>
-        </div>
-
-        <button type="submit" class="btn-deploy">EJECUTAR DESPLIEGUE</button>
-    </form>
-
-    <div id="loading">
-        <div class="scanner"></div>
-        <p class="status-text">TRANSMITIENDO A LOS SERVIDORES...</p>
-        <p style="font-size: 0.6rem; color: #555; margin-top: 10px;">ENGINE: UMBRAE CORE V3.1</p>
-    </div>
-
-    <div class="footer">
-        UMBRAE STUDIO • ALL RIGHTS RESERVED
-    </div>
-</div>
-
-<script>
-    function u(input, id) {
-        if (input.files && input.files[0]) {
-            let n = input.files[0].name;
-            document.getElementById(id).innerText = n.length > 15 ? n.substring(0, 12) + "..." : n;
-            document.getElementById(id).style.color = "#00f2ff";
-        }
-    }
-
-    document.getElementById('mallyForm').onsubmit = function() {
-        this.style.display = 'none';
-        document.getElementById('loading').style.display = 'block';
-    };
-</script>
 
 </body>
 </html>
