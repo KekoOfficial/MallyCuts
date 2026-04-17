@@ -18,7 +18,7 @@ def get_duration(ruta_video):
         return 0
 
 def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, titulo):
-    """✅ VERSION VERTICAL: Ocupa toda la pantalla, portada arriba pequeña"""
+    """✅ VERSION FINAL: Se ve bien en VERTICAL y HORIZONTAL | REPRODUCE EN TELEGRAM"""
     try:
         comando = [
             "ffmpeg", "-y",
@@ -26,23 +26,21 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             "-t", str(DURACION_POR_PARTE),
             "-i", ruta_entrada,
             "-i", ruta_portada,
-            # 👇 MAGIA PARA VERTICAL: Escala a 1080x1920 (Modo Celular)
+            # 👇 FORMATO 16:9 PERO ADAPTATIVO
             "-filter_complex",
-            f"[0:v]scale=1080:1920:force_original_aspect_ratio=decrease[vid];"
-            f"[vid]pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black[bg];"
-            f"[1:v]scale=w=400:h=-1[logo];"
-            f"[bg][logo]overlay=(W-w)/2:30[outv]",
-            # CONFIGURACIÓN DE SALIDA
+            f"[0:v]scale=1920:1080:force_original_aspect_ratio=increase[vid];"
+            f"[vid]crop=1920:1080:((iw-1920)/2):((ih-1080)/2)[bg];"
+            f"[1:v]scale=w=350:h=-1[logo];"
+            f"[bg][logo]overlay=(W-w)/2:20:format=yuv420[outv]",
+            # 👇 CONFIGURACIÓN QUE SI FUNCIONA EN TELEGRAM
             "-map", "[outv]",
             "-map", "0:a",
-            "-c:v", CODEC_VIDEO,
+            "-c:v", libx264",
             "-preset", PRESET,
             "-crf", CRF_QUALITY,
             "-pix_fmt", "yuv420p",
-            "-profile:v", "baseline",
-            "-level", "3.0",
-            "-c:a", CODEC_AUDIO,
-            "-b:a", BITRATE_AUDIO,
+            "-c:a", aac",
+            "-b:a", "128k",
             "-movflags", "+faststart",
             ruta_salida
         ]
@@ -55,7 +53,7 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             timeout=TIMEOUT_FFMPEG
         )
 
-        if os.path.exists(ruta_salida) and os.path.getsize(ruta_salida) > 500000:
+        if os.path.exists(ruta_salida) and os.path.getsize(ruta_salida) > 300000:
             log.info(f"✅ Parte {parte} generada correctamente")
             return f"🎬 {titulo}\n💎 PARTE {parte} DE {total}\n🔗 @MallySeries"
         else:
