@@ -1,38 +1,49 @@
-from flask import Flask, render_template, jsonify, request
-import os, ffmpeg, config, cortes, enviar
+from flask import Flask, render_template, request, jsonify
+import os, threading, subprocess, config
+from cortar import ejecutar_corte
+from enviar import encolar_video
 
 app = Flask(__name__)
+os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
 
-# Asegurar carpetas
-for d in [config.UPLOAD_DIR, config.TEMP_DIR]:
-    os.makedirs(d, exist_ok=True)
-
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-@app.route('/run', methods=['POST'])
-def run():
-    v_file = request.files['video']
-    s_name = request.form['name']
+def flujo_produccion(ruta_v, nombre_s):
+    # 1. Obtener duración real con ffprobe
+    cmd = f"ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 {ruta_v}"
+    duracion = float(subprocess.check_output(cmd, shell=True))
     
-    path_orig = os.path.join(config.UPLOAD_DIR, v_file.filename)
-    v_file.save(path_orig)
+    total_partes = int(duracion // 60) + (1 if duracion % 60 > 0 else 0)
     
-    # Obtener info
-    probe = ffmpeg.probe(path_orig)
-    duracion = float(probe['format']['duration'])
-    partes = int(duracion // 60) + (1 if duracion % 60 > 0 else 0)
+    # 2. Bucle de corte (Esto es rápido)
+    for i in range(total_partes):
+        inicio = i * 60
+        n_parte = i + 1
+        ruta_out = os.path.join(config.UPLOAD_FOLDER, f"p{n_parte}_{os.path.basename(ruta_v)}")
+        
+        # Cortamos
+        caption = ejecutar_corte(ruta_v, ruta_out, inicio, n_parte, total_partes, nombre_s)
+        
+        # Encolamos (el worker se encarga del orden)
+        encolar_video(ruta_out, caption)
 
-    for i in range(partes):
-        out_clip = os.path.join(config.TEMP_DIR, f"clip_{i+1}.mp4")
-        if cortes.procesar_segmento(path_orig, i*60, 60, out_clip):
-            cap = f"🎬 {s_name}\n💎 CAPÍTULO: {i+1}/{partes}\n🔗 @MallySeries"
-            enviar.enviar_video(out_clip, cap)
-            if os.path.exists(out_clip): os.remove(out_clip)
+    # Al finalizar de encordar todo, borramos el original
+    # os.remove(ruta_v) 
 
-    os.remove(path_orig)
-    return jsonify({"message": f"Finalizado: {s_name}"})
+@app.route("/", methods=["GET", "POST"])
+def index():
+    if request.method == "POST":
+        archivo = request.files.get("video")
+        nombre = request.form.get("nombre", "Serie Sin Nombre")
+        
+        if archivo:
+            ruta = os.path.join(config.UPLOAD_FOLDER, archivo.filename)
+            archivo.save(ruta)
+            
+            # Lanzamos el proceso en un hilo separado para no bloquear la web
+            threading.Thread(target=flujo_produccion, args=(ruta, nombre)).start()
+            
+            return jsonify({"status": "procesando", "msg": f"🚀 {nombre} está en producción..."})
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=config.PORT)
+    return render_template("index.html")
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
