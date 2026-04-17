@@ -3,75 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAKURA GALLERY V10</title>
+    <title>SAKURA FOTOS</title>
     <style>
-        :root { --bg: #0a0a0a; --sakura: #ffb7c5; --text: #e0e0e0; --accent: #1a1a1a; }
-        body { 
-            background-color: var(--bg); color: var(--text); 
-            font-family: 'Segoe UI', sans-serif; display: flex; 
-            justify-content: center; align-items: center; 
-            height: 100vh; margin: 0; text-transform: uppercase; letter-spacing: 1px;
-        }
-        .container { 
-            border: 1px solid var(--sakura); padding: 30px; 
-            background: var(--accent); box-shadow: 0 0 20px rgba(255, 183, 197, 0.1); 
-            text-align: center; border-radius: 8px; width: 320px;
-        }
-        h1 { color: var(--sakura); font-size: 1.2rem; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        :root { --bg: #000; --sakura: #ffb7c5; --accent: #111; }
+        body { background: var(--bg); color: #fff; font-family: sans-serif; margin: 0; padding: 20px; }
         
-        select {
-            width: 100%; padding: 10px; background: #000; color: var(--sakura);
-            border: 1px solid #444; margin-bottom: 20px; outline: none;
+        h1 { font-size: 1.2rem; font-weight: 300; margin-bottom: 20px; color: var(--sakura); }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 3 columnas como en tu foto */
+            gap: 5px;
         }
 
-        button {
-            width: 100%; background: none; border: 1px solid var(--sakura); 
-            color: var(--sakura); padding: 12px; cursor: pointer; 
-            font-weight: bold; transition: 0.3s;
+        .video-item {
+            position: relative;
+            aspect-ratio: 1 / 1;
+            overflow: hidden;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
         }
-        button:hover { background: var(--sakura); color: var(--bg); }
-        button:disabled { border-color: #444; color: #444; }
-        
-        .footer { margin-top: 20px; font-size: 0.6rem; opacity: 0.4; }
+
+        .video-item img {
+            width: 100%; height: 100%; object-fit: cover;
+            transition: transform 0.3s;
+        }
+
+        .video-item.selected { border-color: var(--sakura); }
+        .video-item.selected img { transform: scale(0.9); }
+
+        .video-name {
+            position: absolute; bottom: 0; width: 100%;
+            background: rgba(0,0,0,0.6); font-size: 0.6rem;
+            padding: 4px 0; text-align: center;
+        }
+
+        .btn-float {
+            position: fixed; bottom: 30px; left: 50%;
+            transform: translateX(-50%);
+            background: var(--sakura); color: #000;
+            border: none; padding: 15px 40px;
+            border-radius: 30px; font-weight: bold;
+            box-shadow: 0 4px 15px rgba(255,183,197,0.4);
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🌸 Sakura Gallery</h1>
-        
-        <label style="font-size: 0.7rem; display: block; margin-bottom: 10px;">Selecciona Video:</label>
-        <select id="videoSelect">
-            {% for video in videos %}
-            <option value="{{ video }}">{{ video }}</option>
-            {% endfor %}
-        </select>
 
-        <button id="runBtn" onclick="desplegar()">Cortar y Enviar</button>
-        
-        <div class="footer">@OliDevX | Mally Studio</div>
+    <h1>Fotos / Videos</h1>
+
+    <div class="gallery">
+        {% for v in videos %}
+        <div class="video-item" onclick="selectVideo(this, '{{ v.name }}')">
+            <img src="/static/thumbs/{{ v.thumb }}" alt="thumb">
+            <div class="video-name">{{ v.name[:10] }}...</div>
+        </div>
+        {% endfor %}
     </div>
 
+    <button id="runBtn" class="btn-float" onclick="lanzar()">INICIAR CORTE</button>
+
     <script>
-        function desplegar() {
+        let selectedFile = "";
+
+        function selectVideo(el, name) {
+            document.querySelectorAll('.video-item').forEach(i => i.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedFile = name;
+            document.getElementById('runBtn').style.display = 'block';
+        }
+
+        function lanzar() {
             const btn = document.getElementById('runBtn');
-            const video = document.getElementById('videoSelect').value;
-            
-            if(!video) return alert("No hay video seleccionado");
-
+            btn.innerText = "PROCESANDO...";
             btn.disabled = true;
-            btn.innerText = "PROCESANDO FRAGMENTOS...";
 
-            fetch('/run', { 
+            fetch('/run', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ video_file: video })
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ video_file: selectedFile })
             })
             .then(res => res.json())
-            .then(data => {
-                alert(data.message);
-                location.reload(); // Recarga para actualizar la lista si se borró el video
-            })
-            .catch(err => alert("Error de conexión"));
+            .then(data => alert(data.message))
+            .finally(() => location.reload());
         }
     </script>
 </body>
