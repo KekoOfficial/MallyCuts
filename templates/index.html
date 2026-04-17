@@ -10,48 +10,40 @@
             background: var(--bg); color: #fff; font-family: 'Courier New', monospace; 
             margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh;
         }
-        
         .panel {
             width: 90%; max-width: 400px; padding: 30px;
             border: 2px solid var(--sakura); border-radius: 20px;
-            box-shadow: 0 0 20px var(--sakura); text-align: center;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.4); text-align: center;
+            background: rgba(10, 10, 10, 0.9);
         }
-
-        h1 { font-size: 1.2rem; color: var(--sakura); margin-bottom: 25px; letter-spacing: 2px; }
-
+        h1 { font-size: 1.2rem; color: var(--sakura); margin-bottom: 25px; letter-spacing: 2px; text-shadow: 0 0 10px var(--sakura); }
         input[type="text"] {
             width: 100%; padding: 12px; background: transparent; 
             border: 1px solid var(--green); color: var(--green);
             border-radius: 8px; margin-bottom: 20px; box-sizing: border-box;
-            outline: none; text-align: center;
+            outline: none; text-align: center; font-weight: bold;
         }
-
         .gallery {
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;
-            max-height: 200px; overflow-y: auto; margin-bottom: 20px;
-            border: 1px dashed var(--green); padding: 5px; border-radius: 8px;
+            max-height: 250px; overflow-y: auto; margin-bottom: 20px;
+            border: 1px dashed var(--green); padding: 8px; border-radius: 8px;
         }
-
-        .video-item { aspect-ratio: 1/1; background: #111; cursor: pointer; border-radius: 4px; overflow: hidden; }
-        .video-item img { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
-        .video-item.selected { border: 2px solid var(--sakura); }
-        .video-item.selected img { opacity: 1; }
-
+        .video-item { aspect-ratio: 1/1; background: #111; cursor: pointer; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
+        .video-item img { width: 100%; height: 100%; object-fit: cover; opacity: 0.4; transition: 0.3s; }
+        .video-item.selected { border: 2px solid var(--sakura); box-shadow: 0 0 10px var(--sakura); }
+        .video-item.selected img { opacity: 1; transform: scale(1.05); }
         .btn-main {
             width: 100%; padding: 15px; background: var(--sakura); color: #000;
             border: none; border-radius: 10px; font-weight: bold; cursor: pointer;
-            text-transform: uppercase; transition: 0.3s;
+            text-transform: uppercase; font-size: 0.9rem;
         }
-        .btn-main:hover { transform: scale(1.02); box-shadow: 0 0 15px var(--sakura); }
+        .btn-main:disabled { background: #444; color: #888; cursor: not-allowed; }
     </style>
 </head>
 <body>
-
     <div class="panel">
         <h1>MALLY SERIES STUDIO</h1>
-
         <input type="text" id="serieName" placeholder="NOMBRE DE LA SERIE">
-
         <div class="gallery">
             {% for v in videos %}
             <div class="video-item" onclick="seleccionar(this, '{{ v.name }}')">
@@ -59,28 +51,32 @@
             </div>
             {% endfor %}
         </div>
-
-        <button class="btn-main" onclick="iniciar()">INICIAR PRODUCCIÓN</button>
+        <button id="btnRun" class="btn-main" onclick="iniciar()">INICIAR PRODUCCIÓN</button>
     </div>
 
     <script>
         let videoElegido = "";
-
         function seleccionar(el, name) {
             document.querySelectorAll('.video-item').forEach(i => i.classList.remove('selected'));
             el.classList.add('selected');
             videoElegido = name;
         }
-
         function iniciar() {
             const nombre = document.getElementById('serieName').value;
-            if(!nombre || !videoElegido) return alert("Completa el nombre y selecciona un video");
+            const btn = document.getElementById('btnRun');
+            if(!nombre || !videoElegido) return alert("Error: Selecciona video y escribe nombre.");
+            
+            btn.disabled = true;
+            btn.innerText = "PROCESANDO CORTES...";
 
             fetch('/run', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ video_file: videoElegido, serie_name: nombre })
-            }).then(res => res.json()).then(data => alert(data.message));
+            }).then(res => res.json()).then(data => {
+                alert(data.message);
+                location.reload();
+            });
         }
     </script>
 </body>
