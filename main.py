@@ -1,19 +1,20 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 import ffmpeg, os, sys, telebot
 
-# --- CONFIGURACIÓN DIRECTA ---
+# --- CONFIG ---
 BOT_TOKEN = "8759783698:AAFUuC67X--qXoqD4D2YQ7RYlPlHoQmoYlU"
 CHAT_ID = "-1003584710096"
-VIDEO_IN = "video.mp4"
-FOTO_IN = "foto.jpg"
+FOTO_PORTADA = "foto.jpg" # La portada fija que usas siempre
 
 sys.dont_write_bytecode = True
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
-def motor_sakura_v10():
+def motor_sakura_v10(video_filename):
     try:
-        v_abs, p_abs = os.path.abspath(VIDEO_IN), os.path.abspath(FOTO_IN)
+        v_abs = os.path.abspath(video_filename)
+        p_abs = os.path.abspath(FOTO_PORTADA)
+
         if not os.path.exists(v_abs): return "Video no encontrado"
 
         probe = ffmpeg.probe(v_abs)
@@ -23,7 +24,7 @@ def motor_sakura_v10():
         for i in range(total):
             out = f"segmento_{i+1}.mp4"
             
-            # Proceso Lineal Blindado (Anti-413)
+            # Corte directo con Bitrate Blindado
             (ffmpeg.input(v_abs, ss=i*60, t=60)
              .overlay(ffmpeg.input(p_abs), enable='between(t,0,0.05)')
              .output(out, vcodec='libx264', preset='ultrafast', acodec='aac',
@@ -33,26 +34,30 @@ def motor_sakura_v10():
 
             # Envío
             with open(out, 'rb') as f:
-                bot.send_video(CHAT_ID, f, caption=f"🎬 MALLY SERIES\n💎 CAPÍTULO: {i+1}/{total}\n🔗 @MallySeries", 
+                bot.send_video(CHAT_ID, f, 
+                               caption=f"🎬 MALLY CUTS\n💎 CAPÍTULO: {i+1}/{total}\n🔗 @MallySeries", 
                                supports_streaming=True, timeout=300)
             os.remove(out)
         
-        # Purga de originales
-        os.remove(v_abs)
-        os.remove(p_abs)
-        return "Misión Cumplida"
+        # Opcional: Borrar original tras procesar
+        # os.remove(v_abs) 
+        return f"Misión Cumplida: {video_filename} enviado."
     except Exception as e:
         return str(e)
 
 @app.route('/')
 def home():
-    return render_template('index.html')
+    # Escanea la carpeta buscando archivos mp4 para la galería
+    archivos = [f for f in os.listdir('.') if f.endswith('.mp4')]
+    return render_template('index.html', videos=archivos)
 
 @app.route('/run', methods=['POST'])
 def run_task():
-    resultado = motor_sakura_v10()
+    data = request.get_json()
+    video_seleccionado = data.get('video_file')
+    resultado = motor_sakura_v10(video_seleccionado)
     return jsonify({"message": resultado})
 
 if __name__ == '__main__':
-    print("🌸 Servidor Sakura iniciado en http://localhost:5000")
+    print("🌸 Galería Sakura iniciada en http://localhost:5000")
     app.run(host='0.0.0.0', port=5000)
