@@ -1,63 +1,87 @@
+import ffmpeg
+import os
+import sys
+import telebot
 from flask import Flask, render_template, jsonify, request
-import ffmpeg, os, sys, telebot
 
-# --- CONFIG ---
+# --- CONFIGURACIÓN MAESTRA ---
 BOT_TOKEN = "8759783698:AAFUuC67X--qXoqD4D2YQ7RYlPlHoQmoYlU"
 CHAT_ID = "-1003584710096"
-FOTO_PORTADA = "foto.jpg" # La portada fija que usas siempre
+FOTO_PORTADA = "foto.jpg"
+TEMP_FOLDER = "mally_studio_segments"
+THUMB_FOLDER = "static/thumbs"
 
 sys.dont_write_bytecode = True
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
-def motor_sakura_v10(video_filename):
+# Asegurar infraestructura de carpetas
+for folder in [TEMP_FOLDER, THUMB_FOLDER, 'templates']:
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+def generar_miniatura(video_path, thumb_path):
+    """Genera el preview visual para la galería."""
+    if not os.path.exists(thumb_path):
+        try:
+            (ffmpeg.input(video_path, ss=1)
+             .filter('scale', 400, -1)
+             .output(thumb_path, vframes=1)
+             .run(quiet=True, overwrite_output=True))
+        except: pass
+
+def motor_sakura_v10(video_filename, serie_name):
+    """Corta, inyecta portada y envía linealmente."""
     try:
         v_abs = os.path.abspath(video_filename)
         p_abs = os.path.abspath(FOTO_PORTADA)
-
-        if not os.path.exists(v_abs): return "Video no encontrado"
-
+        
         probe = ffmpeg.probe(v_abs)
         duration = float(probe['format']['duration'])
         total = int(duration // 60) + (1 if duration % 60 > 0 else 0)
 
         for i in range(total):
-            out = f"segmento_{i+1}.mp4"
+            actual = i + 1
+            out_p = os.path.join(TEMP_FOLDER, f"clip_{actual}.mp4")
             
-            # Corte directo con Bitrate Blindado
+            # Procesamiento optimizado (Anti-413)
             (ffmpeg.input(v_abs, ss=i*60, t=60)
              .overlay(ffmpeg.input(p_abs), enable='between(t,0,0.05)')
-             .output(out, vcodec='libx264', preset='ultrafast', acodec='aac',
+             .output(out_p, vcodec='libx264', preset='ultrafast', acodec='aac',
                      video_bitrate='3.8M', maxrate='4M', bufsize='6M',
                      pix_fmt='yuv420p', map_metadata=-1, loglevel="error")
              .overwrite_output().run(quiet=True))
 
-            # Envío
-            with open(out, 'rb') as f:
-                bot.send_video(CHAT_ID, f, 
-                               caption=f"🎬 MALLY CUTS\n💎 CAPÍTULO: {i+1}/{total}\n🔗 @MallySeries", 
+            # Envío con el título dinámico
+            caption = f"🎬 {serie_name}\n💎 CAPÍTULO: {actual}/{total}\n🔗 @MallySeries"
+            with open(out_p, 'rb') as v:
+                bot.send_video(CHAT_ID, v, caption=caption, 
                                supports_streaming=True, timeout=300)
-            os.remove(out)
-        
-        # Opcional: Borrar original tras procesar
-        # os.remove(v_abs) 
-        return f"Misión Cumplida: {video_filename} enviado."
+            
+            if os.path.exists(out_p): os.remove(out_p)
+
+        return f"Éxito: {serie_name} enviada completa."
     except Exception as e:
-        return str(e)
+        return f"Error: {str(e)}"
 
 @app.route('/')
 def home():
-    # Escanea la carpeta buscando archivos mp4 para la galería
-    archivos = [f for f in os.listdir('.') if f.endswith('.mp4')]
-    return render_template('index.html', videos=archivos)
+    videos_data = []
+    # Escaneo de galería
+    for f in os.listdir('.'):
+        if f.endswith('.mp4'):
+            thumb_name = f.replace('.mp4', '.jpg')
+            thumb_path = os.path.join(THUMB_FOLDER, thumb_name)
+            generar_miniatura(f, thumb_path)
+            videos_data.append({'name': f, 'thumb': thumb_name})
+    return render_template('index.html', videos=videos_data)
 
 @app.route('/run', methods=['POST'])
 def run_task():
     data = request.get_json()
-    video_seleccionado = data.get('video_file')
-    resultado = motor_sakura_v10(video_seleccionado)
+    resultado = motor_sakura_v10(data.get('video_file'), data.get('serie_name'))
     return jsonify({"message": resultado})
 
 if __name__ == '__main__':
-    print("🌸 Galería Sakura iniciada en http://localhost:5000")
+    print("🚀 SAKURA CORE V10.2 ONLINE")
     app.run(host='0.0.0.0', port=5000)
