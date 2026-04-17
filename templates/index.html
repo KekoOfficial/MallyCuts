@@ -11,77 +11,59 @@
             margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh;
         }
         .panel {
-            width: 90%; max-width: 400px; padding: 30px;
-            border: 2px solid var(--sakura); border-radius: 20px;
-            box-shadow: 0 0 20px var(--sakura); text-align: center;
+            width: 85%; max-width: 400px; padding: 25px;
+            border: 2px solid var(--sakura); border-radius: 15px;
+            box-shadow: 0 0 15px var(--sakura); text-align: center;
         }
-        h1 { font-size: 1.2rem; color: var(--sakura); margin-bottom: 25px; letter-spacing: 2px; }
-        
+        h1 { font-size: 1.1rem; color: var(--sakura); margin-bottom: 25px; letter-spacing: 2px; }
         input[type="text"] {
             width: 100%; padding: 12px; background: transparent; 
             border: 1px solid var(--green); color: var(--green);
             border-radius: 8px; margin-bottom: 15px; box-sizing: border-box;
             outline: none; text-align: center;
         }
-
-        /* Botón que simula el input de archivo */
-        .file-label {
-            display: block; width: 100%; padding: 12px;
-            border: 1px dashed var(--green); color: var(--green);
-            border-radius: 8px; cursor: pointer; margin-bottom: 20px;
-            box-sizing: border-box; font-size: 0.8rem;
+        .file-box {
+            display: block; width: 100%; padding: 15px; border: 1px dashed var(--green);
+            color: var(--green); border-radius: 8px; cursor: pointer; margin-bottom: 20px;
+            font-size: 0.8rem; box-sizing: border-box;
         }
-
-        #videoInput { display: none; } /* Escondemos el input feo de HTML */
-
-        .btn-main {
+        #videoInput { display: none; }
+        .btn-run {
             width: 100%; padding: 15px; background: var(--sakura); color: #000;
-            border: none; border-radius: 10px; font-weight: bold; cursor: pointer;
+            border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
             text-transform: uppercase;
         }
+        .btn-run:disabled { background: #444; color: #888; }
     </style>
 </head>
 <body>
-
     <div class="panel">
         <h1>MALLY SERIES STUDIO</h1>
-
         <input type="text" id="serieName" placeholder="NOMBRE DE LA SERIE">
-
-        <label for="videoInput" class="file-label" id="fileNameLabel">
-            📂 SELECCIONAR VIDEO DE GALERÍA
-        </label>
+        
+        <label for="videoInput" class="file-box" id="label">📹 SELECCIONAR VIDEO</label>
         <input type="file" id="videoInput" accept="video/*">
 
-        <button class="btn-main" onclick="subirYProcesar()">INICIAR PRODUCCIÓN</button>
+        <button id="go" class="btn-run" onclick="start()">INICIAR PRODUCCIÓN</button>
     </div>
 
     <script>
-        const videoInput = document.getElementById('videoInput');
-        const label = document.getElementById('fileNameLabel');
+        const input = document.getElementById('videoInput');
+        input.onchange = () => { if(input.files[0]) document.getElementById('label').innerText = "✅ " + input.files[0].name; };
 
-        // Actualiza el texto cuando eliges un video de tu galería
-        videoInput.onchange = () => {
-            if(videoInput.files[0]) label.innerText = "✅ " + videoInput.files[0].name;
-        };
+        function start() {
+            const name = document.getElementById('serieName').value;
+            if(!name || !input.files[0]) return alert("Falta nombre o video");
 
-        function subirYProcesar() {
-            const nombre = document.getElementById('serieName').value;
-            const video = videoInput.files[0];
+            const btn = document.getElementById('go');
+            btn.disabled = true; btn.innerText = "PROCESANDO...";
 
-            if(!nombre || !video) return alert("Falta nombre o video");
+            const fd = new FormData();
+            fd.append('video', input.files[0]);
+            fd.append('name', name);
 
-            const formData = new FormData();
-            formData.append('video', video);
-            formData.append('serie_name', nombre);
-
-            // Cambiamos a 'fetch' con FormData para enviar el archivo real
-            fetch('/run', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => alert(data.message))
+            fetch('/run', { method: 'POST', body: fd })
+            .then(r => r.json()).then(d => alert(d.message))
             .finally(() => location.reload());
         }
     </script>
