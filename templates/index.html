@@ -3,57 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAKURA PANEL</title>
+    <title>MALLY SERIES STUDIO</title>
     <style>
-        :root { --sakura: #ffb7c5; --bg: #000; }
-        body { background: var(--bg); color: #fff; font-family: sans-serif; margin: 0; padding: 15px; }
-        .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin-top: 15px; }
-        .item { aspect-ratio: 1/1; background: #111; cursor: pointer; position: relative; overflow: hidden; }
-        .item img { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
-        .item.selected { outline: 3px solid var(--sakura); outline-offset: -3px; }
-        .item.selected img { opacity: 1; }
-        input { width: 100%; padding: 12px; background: #111; border: 1px solid #333; color: var(--sakura); border-radius: 5px; box-sizing: border-box; }
-        .btn {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: var(--sakura); color: #000; border: none; padding: 15px 40px;
-            border-radius: 30px; font-weight: bold; display: none; z-index: 100;
+        :root { --sakura: #ff00ff; --bg: #000; --green: #00ff00; }
+        body { 
+            background: var(--bg); color: #fff; font-family: 'Courier New', monospace; 
+            margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh;
         }
+        
+        .panel {
+            width: 90%; max-width: 400px; padding: 30px;
+            border: 2px solid var(--sakura); border-radius: 20px;
+            box-shadow: 0 0 20px var(--sakura); text-align: center;
+        }
+
+        h1 { font-size: 1.2rem; color: var(--sakura); margin-bottom: 25px; letter-spacing: 2px; }
+
+        input[type="text"] {
+            width: 100%; padding: 12px; background: transparent; 
+            border: 1px solid var(--green); color: var(--green);
+            border-radius: 8px; margin-bottom: 20px; box-sizing: border-box;
+            outline: none; text-align: center;
+        }
+
+        .gallery {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;
+            max-height: 200px; overflow-y: auto; margin-bottom: 20px;
+            border: 1px dashed var(--green); padding: 5px; border-radius: 8px;
+        }
+
+        .video-item { aspect-ratio: 1/1; background: #111; cursor: pointer; border-radius: 4px; overflow: hidden; }
+        .video-item img { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
+        .video-item.selected { border: 2px solid var(--sakura); }
+        .video-item.selected img { opacity: 1; }
+
+        .btn-main {
+            width: 100%; padding: 15px; background: var(--sakura); color: #000;
+            border: none; border-radius: 10px; font-weight: bold; cursor: pointer;
+            text-transform: uppercase; transition: 0.3s;
+        }
+        .btn-main:hover { transform: scale(1.02); box-shadow: 0 0 15px var(--sakura); }
     </style>
 </head>
 <body>
-    <input type="text" id="serieTitle" placeholder="Nombre de la Serie...">
-    <div class="gallery">
-        {% for v in videos %}
-        <div class="item" onclick="select(this, '{{ v.name }}')">
-            <img src="/static/thumbs/{{ v.thumb }}">
+
+    <div class="panel">
+        <h1>MALLY SERIES STUDIO</h1>
+
+        <input type="text" id="serieName" placeholder="NOMBRE DE LA SERIE">
+
+        <div class="gallery">
+            {% for v in videos %}
+            <div class="video-item" onclick="seleccionar(this, '{{ v.name }}')">
+                <img src="/static/thumbs/{{ v.thumb }}" alt="v">
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
+
+        <button class="btn-main" onclick="iniciar()">INICIAR PRODUCCIÓN</button>
     </div>
-    <button id="actionBtn" class="btn" onclick="start()">INICIAR CORTES</button>
 
     <script>
-        let selectedFile = "";
-        function select(el, name) {
-            document.querySelectorAll('.item').forEach(i => i.classList.remove('selected'));
+        let videoElegido = "";
+
+        function seleccionar(el, name) {
+            document.querySelectorAll('.video-item').forEach(i => i.classList.remove('selected'));
             el.classList.add('selected');
-            selectedFile = name;
-            document.getElementById('actionBtn').style.display = 'block';
+            videoElegido = name;
         }
-        function start() {
-            const title = document.getElementById('serieTitle').value;
-            if(!title) return alert("Escribe el nombre de la serie");
-            const btn = document.getElementById('actionBtn');
-            btn.innerText = "PROCESANDO...";
-            btn.disabled = true;
+
+        function iniciar() {
+            const nombre = document.getElementById('serieName').value;
+            if(!nombre || !videoElegido) return alert("Completa el nombre y selecciona un video");
 
             fetch('/run', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ video_file: selectedFile, serie_name: title })
-            }).then(res => res.json()).then(data => {
-                alert(data.message);
-                location.reload();
-            });
+                body: JSON.stringify({ video_file: videoElegido, serie_name: nombre })
+            }).then(res => res.json()).then(data => alert(data.message));
         }
     </script>
 </body>
