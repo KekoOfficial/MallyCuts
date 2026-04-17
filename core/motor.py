@@ -1,14 +1,32 @@
+import subprocess
+import os
+from config import *
+from core.logger import log
+
+# ✅ ESTA FUNCIÓN DEBE LLAMARSE ASÍ
+def get_duration(ruta_video):
+    """Obtiene duración total del video en segundos"""
+    try:
+        comando = [
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            ruta_video
+        ]
+        return float(subprocess.check_output(comando).decode().strip())
+    except Exception as e:
+        log.error(f"No se pudo leer duración: {e}")
+        return 0
+
 def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, titulo):
     """Versión ULTRA ESTABLE: Corta, escala y pone portada"""
     try:
-        # COMANDO SIMPLIFICADO Y POTENTE
         comando = [
             "ffmpeg", "-y",
             "-ss", str(inicio),
             "-t", str(DURACION_POR_PARTE),
             "-i", ruta_entrada,
             "-i", ruta_portada,
-            # Escalar video principal a 1080p exacto
             "-filter_complex",
             f"[0:v]scale={RESOLUCION}:force_original_aspect_ratio=decrease,pad={RESOLUCION}:(ow-iw)/2:(oh-ih)/2,setsar=1[video];"
             f"[1:v]scale=w=200:h=-1[logo];"
@@ -27,17 +45,15 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             ruta_salida
         ]
 
-        # Ejecutar y MOSTRAR ERRORES si quieres depurar (cambia DEVNULL por PIPE)
         resultado = subprocess.run(
             comando,
             check=True,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE, # Capturamos errores
+            stderr=subprocess.PIPE,
             timeout=TIMEOUT_FFMPEG
         )
 
-        # Verificar que el archivo existe y pesa bien
-        if os.path.exists(ruta_salida) and os.path.getsize(ruta_salida) > 500000: # Mínimo 500KB
+        if os.path.exists(ruta_salida) and os.path.getsize(ruta_salida) > 500000:
             log.info(f"✅ Parte {parte} generada correctamente")
             return f"🎬 {titulo}\n💎 PARTE {parte} DE {total}\n🔗 @MallySeries"
         else:
