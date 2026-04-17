@@ -3,99 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MALLY STUDIO V10</title>
     <style>
-        :root { --bg: #000; --sakura: #ffb7c5; --accent: #111; }
+        :root { --sakura: #ffb7c5; --bg: #000; }
         body { background: var(--bg); color: #fff; font-family: sans-serif; margin: 0; padding: 15px; }
+        h1 { font-size: 1rem; color: var(--sakura); text-align: center; font-weight: 300; }
         
-        h1 { font-size: 1.1rem; font-weight: 300; color: var(--sakura); margin-bottom: 20px; text-align: center; }
-
-        /* Campo de Nombre */
-        .input-group { margin-bottom: 20px; }
-        input[type="text"] {
-            width: 100%; padding: 12px; background: #111; border: 1px solid #333;
-            color: var(--sakura); border-radius: 8px; box-sizing: border-box;
-            outline: none; font-size: 0.9rem; text-align: center;
+        .header-input { margin-bottom: 20px; }
+        input { 
+            width: 100%; padding: 12px; background: #111; border: 1px solid #333; 
+            color: var(--sakura); border-radius: 5px; box-sizing: border-box; 
         }
 
-        /* Galería Estilo Xiaomi */
-        .gallery {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 3px;
-        }
+        .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+        .item { aspect-ratio: 1/1; background: #111; cursor: pointer; position: relative; }
+        .item img { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; }
+        .item.selected { outline: 2px solid var(--sakura); outline-offset: -2px; }
+        .item.selected img { opacity: 1; }
 
-        .video-item {
-            position: relative;
-            aspect-ratio: 1 / 1;
-            background: #1a1a1a;
-            cursor: pointer;
-            overflow: hidden;
-            border-radius: 4px;
-        }
-
-        .video-item img { width: 100%; height: 100%; object-fit: cover; opacity: 0.6; transition: 0.3s; }
-        .video-item.selected { outline: 3px solid var(--sakura); outline-offset: -3px; }
-        .video-item.selected img { opacity: 1; transform: scale(1.05); }
-
-        .btn-lanzar {
-            position: fixed; bottom: 30px; left: 50%;
-            transform: translateX(-50%);
-            background: var(--sakura); color: #000;
-            border: none; padding: 15px 40px;
-            border-radius: 30px; font-weight: bold;
-            display: none; box-shadow: 0 5px 15px rgba(255,183,197,0.3);
-            z-index: 100; cursor: pointer;
+        .btn {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--sakura); color: #000; border: none;
+            padding: 15px 40px; border-radius: 30px; font-weight: bold;
+            display: none; box-shadow: 0 4px 15px rgba(255,183,197,0.3);
         }
     </style>
 </head>
 <body>
-
-    <h1>🌸 Mally Studio Core</h1>
-
-    <div class="input-group">
-        <input type="text" id="serieName" placeholder="NOMBRE DE LA SERIE...">
+    <h1>🌸 UMBRAE STUDIO</h1>
+    <div class="header-input">
+        <input type="text" id="serieTitle" placeholder="Nombre de la Serie...">
     </div>
-
     <div class="gallery">
         {% for v in videos %}
-        <div class="video-item" onclick="seleccionar(this, '{{ v.name }}')">
-            <img src="/static/thumbs/{{ v.thumb }}" alt="thumb">
+        <div class="item" onclick="select(this, '{{ v.name }}')">
+            <img src="/static/thumbs/{{ v.thumb }}">
         </div>
         {% endfor %}
     </div>
-
-    <button id="runBtn" class="btn-lanzar" onclick="iniciar()">INICIAR DESPLIEGUE</button>
+    <button id="actionBtn" class="btn" onclick="start()">INICIAR CORTE</button>
 
     <script>
-        let selectedFile = "";
-
-        function seleccionar(el, name) {
-            document.querySelectorAll('.video-item').forEach(i => i.classList.remove('selected'));
+        let selected = "";
+        function select(el, name) {
+            document.querySelectorAll('.item').forEach(i => i.classList.remove('selected'));
             el.classList.add('selected');
-            selectedFile = name;
-            document.getElementById('runBtn').style.display = 'block';
+            selected = name;
+            document.getElementById('actionBtn').style.display = 'block';
         }
-
-        function iniciar() {
-            const titulo = document.getElementById('serieName').value;
-            if(!titulo) return alert("Escribe el nombre de la serie");
-
-            const btn = document.getElementById('runBtn');
-            btn.disabled = true;
+        function start() {
+            const title = document.getElementById('serieTitle').value;
+            if(!title) return alert("Falta el nombre de la serie");
+            const btn = document.getElementById('actionBtn');
             btn.innerText = "PROCESANDO...";
+            btn.disabled = true;
 
             fetch('/run', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ 
-                    video_file: selectedFile,
-                    serie_name: titulo 
-                })
-            })
-            .then(res => res.json())
-            .then(data => alert(data.message))
-            .finally(() => location.reload());
+                body: JSON.stringify({ video_file: selected, serie_name: title })
+            }).then(res => res.json()).then(data => {
+                alert(data.message);
+                location.reload();
+            });
         }
     </script>
 </body>
