@@ -1,15 +1,41 @@
-import telebot
+import requests
+import config
+import queue
+import threading
+import time
 
-BOT_TOKEN = "8759783698:AAFUuC67X--qXoqD4D2YQ7RYlPlHoQmoYlU"
-CHAT_ID = "-1003584710096"
-bot = telebot.TeleBot(BOT_TOKEN)
+# La cola mágica
+cola_envio = queue.Queue()
 
-def enviar_video(ruta_file, caption):
-    """Envía el clip procesado al canal."""
-    try:
-        with open(ruta_file, 'rb') as v:
-            bot.send_video(CHAT_ID, v, caption=caption, supports_streaming=True, timeout=300)
-        return True
-    except Exception as e:
-        print(f"Error envío: {e}")
-        return False
+def worker_telegram():
+    while True:
+        # Obtiene el paquete (ruta del video y su caption)
+        tarea = cola_envio.get()
+        ruta, caption = tarea
+        
+        try:
+            url = f"https://api.telegram.org/bot{config.TOKEN}/sendVideo"
+            with open(ruta, "rb") as v:
+                requests.post(url, data={
+                    "chat_id": config.CHAT_ID,
+                    "caption": caption,
+                    "supports_streaming": "true"
+                }, files={"video": v}, timeout=300)
+            
+            # Limpieza post-envío
+            import os
+            if os.path.exists(ruta): os.remove(ruta)
+            
+        except Exception as e:
+            print(f"❌ Error enviando {ruta}: {e}")
+            # Reintento simple: si falla, vuelve a la cola al final
+            # cola_envio.put(tarea) 
+            
+        cola_envio.task_done()
+        time.sleep(1) # Respiro para evitar ban de Telegram
+
+# Iniciamos el hilo de envío único (solo 1 a la vez)
+threading.Thread(target=worker_telegram, daemon=True).start()
+
+def encolar_video(ruta, caption):
+    cola_envio.put((ruta, caption))
