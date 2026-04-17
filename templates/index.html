@@ -1,43 +1,98 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MALLY CUTS PRO</title>
+    <title>MALLY CUTS STUDIO</title>
     <style>
-        body { background: #000; color: #00ff00; font-family: 'Courier New', monospace; text-align: center; }
-        .card { border: 2px solid #ff00ff; margin: 50px auto; width: 90%; max-width: 400px; padding: 20px; border-radius: 15px; box-shadow: 0 0 20px #ff00ff; }
-        input, button { width: 100%; padding: 15px; margin: 10px 0; border-radius: 10px; box-sizing: border-box; }
-        input { background: #111; border: 1px solid #00ff00; color: #00ff00; }
-        button { background: #ff00ff; color: #000; font-weight: bold; border: none; cursor: pointer; }
+        :root { --sakura: #ff00ff; --bg: #000; --green: #00ff00; }
+        body { 
+            background: var(--bg); color: #fff; font-family: 'Courier New', monospace; 
+            margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh;
+        }
+        .panel {
+            width: 90%; max-width: 400px; padding: 25px;
+            border: 2px solid var(--sakura); border-radius: 20px;
+            box-shadow: 0 0 20px var(--sakura); text-align: center;
+            background: #0a0a0a;
+        }
+        h1 { font-size: 1.2rem; color: var(--sakura); margin-bottom: 20px; letter-spacing: 2px; }
+        
+        input[type="text"] {
+            width: 100%; padding: 12px; background: transparent; 
+            border: 1px solid var(--green); color: var(--green);
+            border-radius: 8px; margin-bottom: 15px; box-sizing: border-box;
+            outline: none; text-align: center;
+        }
+
+        .file-box {
+            display: block; width: 100%; padding: 12px;
+            border: 1px dashed var(--green); color: var(--green);
+            border-radius: 8px; cursor: pointer; margin-bottom: 10px;
+            box-sizing: border-box; font-size: 0.8rem;
+        }
+
+        input[type="file"] { display: none; }
+
+        .btn-main {
+            width: 100%; padding: 15px; background: var(--sakura); color: #000;
+            border: none; border-radius: 10px; font-weight: bold; cursor: pointer;
+            text-transform: uppercase; margin-top: 10px;
+        }
+        .btn-main:disabled { background: #444; color: #888; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>Mally Cuts PRO 😈</h1>
-        <form id="uploadForm">
-            <input type="text" id="nombre" placeholder="Nombre de la Serie" required>
-            <input type="file" id="video" accept="video/*" required>
-            <button type="submit">DESPLEGAR SISTEMA</button>
-        </form>
-        <div id="status"></div>
+
+    <div class="panel">
+        <h1>MALLY CUTS PRO</h1>
+
+        <input type="text" id="serieName" placeholder="NOMBRE DE LA SERIE">
+
+        <label for="portadaInput" class="file-box" id="portadaLabel">
+            🖼️ SELECCIONAR PORTADA (JPG)
+        </label>
+        <input type="file" id="portadaInput" accept="image/jpeg,image/png">
+
+        <label for="videoInput" class="file-box" id="videoLabel">
+            📹 SELECCIONAR VIDEO
+        </label>
+        <input type="file" id="videoInput" accept="video/*">
+
+        <button class="btn-main" id="btnGo" onclick="subirTodo()">INICIAR PRODUCCIÓN</button>
     </div>
 
     <script>
-        document.getElementById('uploadForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const btn = e.target.querySelector('button');
-            btn.disabled = true; btn.innerText = "SUBIENDO...";
-            
-            const fd = new FormData();
-            fd.append('video', document.getElementById('video').files[0]);
-            fd.append('nombre', document.getElementById('nombre').value);
+        const vInput = document.getElementById('videoInput');
+        const pInput = document.getElementById('portadaInput');
+        const vLabel = document.getElementById('videoLabel');
+        const pLabel = document.getElementById('portadaLabel');
 
-            const res = await fetch('/', { method: 'POST', body: fd });
+        vInput.onchange = () => { if(vInput.files[0]) vLabel.innerText = "✅ VIDEO: " + vInput.files[0].name; };
+        pInput.onchange = () => { if(pInput.files[0]) pLabel.innerText = "✅ FOTO: " + pInput.files[0].name; };
+
+        async function subirTodo() {
+            const nombre = document.getElementById('serieName').value;
+            const video = vInput.files[0];
+            const portada = pInput.files[0];
+
+            if(!nombre || !video || !portada) return alert("Falta llenar datos, video o portada");
+
+            const btn = document.getElementById('btnGo');
+            btn.disabled = true;
+            btn.innerText = "ENVIANDO A SISTEMA...";
+
+            const fd = new FormData();
+            fd.append('video', video);
+            fd.append('portada', portada);
+            fd.append('nombre', nombre);
+
+            const res = await fetch('/run', { method: 'POST', body: fd });
             const data = await res.json();
-            document.getElementById('status').innerText = data.msg;
-            btn.innerText = "EN COLA ✅";
-        };
+            
+            alert(data.message);
+            location.reload();
+        }
     </script>
 </body>
 </html>
