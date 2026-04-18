@@ -2,30 +2,34 @@ from flask import Flask, render_template, request, jsonify
 import os
 import threading
 import time
+import imageio_ffmpeg  # ⬅️ IMPORTANTE PARA RENDER
 from config import *
 from core.motor import get_duration, crear_corte
 from core.enviar import enviar_a_telegram
 from core.logger import log
 
+# 📍 DECIRLE A PYTHON DÓNDE ESTÁ FFMPEG
+os.environ["IMAGEIO_FFMPEG_EXE"] = imageio_ffmpeg.get_ffmpeg_exe()
+
 app = Flask(__name__, static_folder=STATIC_FOLDER)
 
 def proceso_completo(ruta_video, ruta_portada, titulo):
     log.info(f"🚀 INICIANDO: {titulo}")
-    
+
     duracion = get_duration(ruta_video)
     if duracion == 0:
         log.error("Video inválido o corrupto")
         return
-    
+
     total_partes = int(duracion // DURACION_POR_PARTE) + (1 if duracion % DURACION_POR_PARTE > 0 else 0)
     log.info(f"📊 Duración: {round(duracion/60,2)} min | Partes: {total_partes}")
-    
+
     for i in range(total_partes):
         numero = i + 1
         ruta_salida = os.path.join(UPLOAD_FOLDER, f"parte_{numero:03d}.mp4")
-        
+
         log.info(f"✂️ Procesando parte {numero}/{total_partes}...")
-        
+
         caption = crear_corte(
             ruta_video,
             ruta_salida,
@@ -35,18 +39,18 @@ def proceso_completo(ruta_video, ruta_portada, titulo):
             total = total_partes,
             titulo = titulo
         )
-        
+
         if caption:
             if not enviar_a_telegram(ruta_salida, caption):
                 log.error("⛔ Proceso detenido por fallos consecutivos")
                 break
         else:
             log.error(f"❌ No se pudo generar parte {numero}")
-    
+
     # Limpieza final
     if os.path.exists(ruta_video): os.remove(ruta_video)
     if os.path.exists(ruta_portada): os.remove(ruta_portada)
-    
+
     log.info(f"🏁 FINALIZADO: {titulo}\n" + "="*40)
 
 @app.route("/")
@@ -59,23 +63,23 @@ def procesar():
         video = request.files['video']
         portada = request.files['portada']
         titulo = request.form.get('titulo', 'Sin Título')
-        
+
         # Guardar archivos temporales
         ruta_v = os.path.join(UPLOAD_FOLDER, f"original_{int(time.time())}.mp4")
         ruta_p = os.path.join(STATIC_FOLDER, "portada_temp.jpg")
-        
+
         video.save(ruta_v)
         portada.save(ruta_p)
-        
+
         # Ejecutar en segundo plano para no congelar la web
         hilo = threading.Thread(target=proceso_completo, args=(ruta_v, ruta_p, titulo), daemon=True)
         hilo.start()
-        
+
         return jsonify({
             "status": "ok",
             "mensaje": f"🔥 Proceso iniciado!\nTítulo: {titulo}"
         })
-        
+
     except Exception as e:
         log.error(f"Error en formulario: {e}")
         return jsonify({"status": "error", "mensaje": str(e)})
