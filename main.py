@@ -21,6 +21,9 @@ except ImportError:
 
 app = Flask(__name__, static_folder=STATIC_FOLDER)
 
+# 🚀 LÍMITE DE ARCHIVOS GIGANTES (HASTA 5 GB)
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024 * 1024
+
 def proceso_completo(ruta_video, ruta_portada, titulo):
     log.info(f"🚀 INICIANDO: {titulo}")
 
@@ -68,9 +71,16 @@ def index():
 @app.route("/procesar", methods=["POST"])
 def procesar():
     try:
+        # Verificar que lleguen los archivos obligatorios
+        if 'video' not in request.files or 'portada' not in request.files:
+            raise Exception("Faltan archivos obligatorios (video o portada)")
+
         video = request.files['video']
         portada = request.files['portada']
         titulo = request.form.get('titulo', 'Sin Título')
+
+        if video.filename == '' or portada.filename == '':
+            raise Exception("El nombre del archivo está vacío")
 
         # Guardar archivos temporales con nombre único
         ruta_v = os.path.join(UPLOAD_FOLDER, f"original_{int(time.time())}.mp4")
@@ -78,6 +88,10 @@ def procesar():
 
         video.save(ruta_v)
         portada.save(ruta_p)
+
+        # Mostrar tamaño en consola para saber si llegó bien
+        tamaño_mb = os.path.getsize(ruta_v) / (1024*1024)
+        log.info(f"📥 Archivo recibido: {tamaño_mb:.1f} MB listo para procesar")
 
         # Ejecutar en segundo plano para no congelar la web
         hilo = threading.Thread(target=proceso_completo, args=(ruta_v, ruta_p, titulo), daemon=True)
@@ -89,7 +103,7 @@ def procesar():
         })
 
     except Exception as e:
-        log.error(f"⚠️ Error en formulario: {e}")
+        log.error(f"⚠️ Error en formulario: {str(e)}")
         return jsonify({"status": "error", "mensaje": str(e)})
 
 if __name__ == "__main__":
