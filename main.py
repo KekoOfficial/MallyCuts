@@ -3,7 +3,6 @@ import os
 import threading
 import queue
 import subprocess
-import time
 from core.cortar import extraer_segmento
 from core.enviar import despachar_a_telegram
 import config
@@ -111,6 +110,14 @@ def procesar():
             
         PROCESANDO = False
         print("✅ MISION COMPLETADA")
+    
+    # === CALCULAR ANTES DE RESPONDER ===
+    res = subprocess.run([
+        'ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
+        '-of', 'default=noprint_wrappers=1:nokey=1', ruta_entrada
+    ], capture_output=True, text=True)
+    duracion = float(res.stdout)
+    total_partes = int(duracion // config.CLIP_DURATION) + 1
     
     threading.Thread(target=trabajo_completo, daemon=True).start()
     
