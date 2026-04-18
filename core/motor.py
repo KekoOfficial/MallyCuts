@@ -1,31 +1,35 @@
 import subprocess
 import os
-import imageio_ffmpeg  # ⬅️ IMPORTANTE PARA RENDER
+import imageio_ffmpeg
 from config import *
 from core.logger import log
 
-# 📍 OBTENER RUTAS EXACTAS DE LOS EJECUTABLES
+# 📍 RUTA EXACTA DE FFMPEG
 FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
-# Para ffprobe usamos la misma carpeta
-FFPROBE_BIN = FFMPEG_BIN.replace("ffmpeg", "ffprobe")
 
 def get_duration(ruta_video):
-    """Obtiene duración total del video en segundos"""
+    """Obtiene duración usando el MISMO ffmpeg, sin necesitar ffprobe"""
     try:
         comando = [
-            FFPROBE_BIN, "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1",
-            ruta_video
+            FFMPEG_BIN, "-i", ruta_video
         ]
-        salida = subprocess.check_output(comando).decode().strip()
-        return float(salida) if salida else 0
+        # Corremos y capturamos la salida de error donde viene la duración
+        resultado = subprocess.run(comando, capture_output=True, text=True)
+        salida = resultado.stderr  # En ffmpeg la info sale por aquí
+        
+        # Buscamos la línea que dice "Duration"
+        for linea in salida.split('\n'):
+            if 'Duration' in linea:
+                tiempo = linea.split(',')[0].split('Duration:')[1].strip()
+                h, m, s = tiempo.split(':')
+                total_segundos = int(h)*3600 + int(m)*60 + float(s)
+                return total_segundos
+        return 0
     except Exception as e:
         log.error(f"No se pudo leer duración: {e}")
         return 0
 
 def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, titulo):
-    """⚡ MODO DIOS VELOCIDAD: TODO VERTICAL 1080x1920 | ULTRA RÁPIDO"""
     try:
         comando = [
             FFMPEG_BIN, "-y",
@@ -33,13 +37,11 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             "-t", str(DURACION_POR_PARTE),
             "-i", ruta_entrada,
             "-i", ruta_portada,
-            # 📱 FORMATO VERTICAL FORZADO
             "-filter_complex",
-            f"[0:v]scale=1080:190:force_original_aspect_ratio=decrease[vid];"
-            f"[vid]pad=1080x1920:(ow-iw)/2:(oh-ih)/2:color=black[bg];"
+            f"[0:v]scale=1080:1920:force_original_aspect_ratio=decrease[vid];"
+            f"[vid]pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black[bg];"
             f"[1:v]scale=w=400:h=-1[logo];"
             f"[bg][logo]overlay=(W-w)/2:30[outv]",
-            # ⚡ CONFIGURACIÓN DE VELOCIDAD MÁXIMA
             "-map", "[outv]",
             "-map", "0:a",
             "-c:v", "libx264",
@@ -63,8 +65,6 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
 
         if os.path.exists(ruta_salida) and os.path.getsize(ruta_salida) > 300000:
             log.info(f"✅ Parte {parte} generada correctamente")
-            
-            # 📝 TEXTO EXACTO
             return (
                 f"🎬 {titulo}\n"
                 f"💎 CAPÍTULO: {parte} / {total}\n"
@@ -72,12 +72,9 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
                 f"🔗 @MallySeries"
             )
         else:
-            log.error(f"❌ Archivo vacío o muy pequeño: {ruta_salida}")
+            log.error(f"❌ Archivo vacío o muy pequeño")
             return None
 
-    except subprocess.CalledProcessError as e:
-        log.error(f"💥 Error FFmpeg Parte {parte}")
-        return None
     except Exception as e:
-        log.error(f"❌ Error general Parte {parte}: {str(e)}")
+        log.error(f"💥 Error: {str(e)}")
         return None
