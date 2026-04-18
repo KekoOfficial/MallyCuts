@@ -3,7 +3,8 @@ import time
 import os
 import config
 
-bot = telebot.TeleBot(config.BOT_TOKEN)
+# ✅ Ahora usa config.TOKEN para que coincida con tu archivo
+bot = telebot.TeleBot(config.TOKEN)
 
 def despachar_a_telegram(path_archivo, mensaje):
     for intento in range(1, config.MAX_RETRIES + 1):
