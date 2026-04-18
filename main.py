@@ -2,13 +2,12 @@ from flask import Flask, render_template, request, jsonify
 import os
 import threading
 import time
-import traceback  # 🧠 Para ver errores completos
+import traceback
 from config import *
 from core.motor import get_duration, crear_corte
 from core.enviar import enviar_a_telegram
 from core.logger import log
 
-# 🧠 DETECTAR AUTOMÁTICAMENTE EL ENTORNO
 try:
     import imageio_ffmpeg
     FFMPEG_RUTA = imageio_ffmpeg.get_ffmpeg_exe()
@@ -20,17 +19,12 @@ except ImportError:
 
 app = Flask(__name__, static_folder=STATIC_FOLDER)
 
-# ==============================================
-# 🚀 CONFIGURACIÓN PARA ARCHIVOS GIGANTES
-# ==============================================
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024  # 10 GB
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024
 app.config['MAX_FORM_MEMORY_SIZE'] = 10 * 1024 * 1024 * 1024
 
-# 🛡️ CONTROL DE CONCURRENCIA
 PROCESO_ACTIVO = False
 
 def proceso_completo(ruta_video, ruta_portada, titulo):
-    """Función principal con logs detallados"""
     global PROCESO_ACTIVO
     try:
         log.info(f"🚀 INICIANDO PROCESO: {titulo}")
@@ -39,6 +33,7 @@ def proceso_completo(ruta_video, ruta_portada, titulo):
         if duracion == 0:
             raise Exception("No se pudo leer la duración del video")
 
+        # ✅ AQUÍ ESTÁ EL ARREGLO
         total_partes = int(duracion // DURACION_POR_PARTE) + (1 if duracion % DURACION_POR_PARTE > 0 else 0)
         log.info(f"📊 Duración total: {round(duracion/60,2)} min | Partes: {total_partes}")
 
@@ -50,7 +45,7 @@ def proceso_completo(ruta_video, ruta_portada, titulo):
 
             caption = crear_corte(
                 ruta_video, ruta_salida, i * DURACION_POR_PARTE,
-                ruta_portada, numero, total, titulo
+                ruta_portada, numero, total_partes, titulo  # <-- CAMBIÉ 'total' POR 'total_partes'
             )
 
             if caption:
@@ -67,7 +62,6 @@ def proceso_completo(ruta_video, ruta_portada, titulo):
         log.error(f"💥 ERROR CRÍTICO EN EL PROCESO: {str(e)}")
         log.error(f"🔍 RASTRO DEL ERROR:\n{traceback.format_exc()}")
     finally:
-        # 🧹 LIMPIEZA SEGURA
         try:
             if os.path.exists(ruta_video): os.remove(ruta_video)
         except: pass
@@ -85,14 +79,12 @@ def index():
 def procesar():
     global PROCESO_ACTIVO
     try:
-        # 🛡️ Verificar si está ocupado
         if PROCESO_ACTIVO:
             return jsonify({
                 "status": "ocupado",
                 "mensaje": "⏳ ESPERA... Hay un proceso activo."
             }), 429
 
-        # 📥 Recibir datos
         if 'video' not in request.files or 'portada' not in request.files:
             raise Exception("Faltan archivos obligatorios (video o portada)")
 
@@ -103,7 +95,6 @@ def procesar():
         if video.filename == '':
             raise Exception("El archivo de video está vacío")
 
-        # 📂 Guardar con nombres únicos
         timestamp = int(time.time())
         ruta_v = os.path.join(UPLOAD_FOLDER, f"original_{timestamp}.mp4")
         ruta_p = os.path.join(STATIC_FOLDER, f"portada_{timestamp}.jpg")
@@ -114,10 +105,8 @@ def procesar():
         tamaño_mb = os.path.getsize(ruta_v) / (1024*1024)
         log.info(f"📥 ARCHIVO RECIBIDO: {tamaño_mb:.1f} MB")
 
-        # 🔒 Marcar como ocupado
         PROCESO_ACTIVO = True
 
-        # 🧵 Ejecutar en segundo plano
         hilo = threading.Thread(target=proceso_completo, args=(ruta_v, ruta_p, titulo), daemon=True)
         hilo.start()
 
@@ -132,9 +121,6 @@ def procesar():
         PROCESO_ACTIVO = False
         return jsonify({"status": "error", "mensaje": str(e)}), 500
 
-# ==============================================
-# 🚀 SERVIDOR FUERTE PARA TERMUX
-# ==============================================
 if __name__ == "__main__":
     log.info("⚔️ MALLYCUTS - MODO DIOS WEB ACTIVADO ⚔️")
     log.info(f"🔧 Configurado para: {'RENDER' if 'IMAGEIO_FFMPEG_EXE' in os.environ else 'TERMUX/PC'}")
