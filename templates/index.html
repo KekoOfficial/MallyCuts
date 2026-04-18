@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MallyCuts PRO</title>
+    <style>
+        body {
+            background: #000;
+            color: #fff;
+            font-family: Arial;
+            text-align: center;
+            padding-top: 50px;
+        }
+        input, button {
+            display: block;
+            margin: 15px auto;
+            padding: 10px;
+            width: 80%;
+            max-width: 400px;
+        }
+        button {
+            background: #fff;
+            color: #000;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>⚔️ MallyCuts PRO ⚔️</h1>
+
+    <form id="formulario">
+        <input type="text" name="titulo" placeholder="Escribe el título" required>
+        <input type="file" name="video" accept="video/*" required>
+        <button type="submit">🚀 CORTAR Y ENVIAR</button>
+    </form>
+
+    <div id="estado"></div>
+
+<script>
+document.getElementById('formulario').onsubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    
+    document.getElementById('estado').innerHTML = "⏳ Procesando...";
+    
+    const res = await fetch('/procesar', {
+        method: 'POST',
+        body: formData
+    });
+    
+    const data = await res.json();
+    document.getElementById('estado').innerHTML = `<strong>${data.mensaje}</strong>`;
+}
+</script>
+
+</body>
+</html>
