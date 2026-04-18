@@ -3,7 +3,6 @@ import time
 import os
 import config
 
-# ✅ Ahora usa config.TOKEN para que coincida con tu archivo
 bot = telebot.TeleBot(config.TOKEN)
 
 def despachar_a_telegram(path_archivo, mensaje):
@@ -22,17 +21,16 @@ def despachar_a_telegram(path_archivo, mensaje):
                     timeout=config.TIMEOUT_SEND,
                     supports_streaming=True
                 )
-            print("✅ Enviado con éxito")
             return True
             
         except Exception as e:
             err = str(e)
             if "413" in err or "Too Large" in err:
-                print(f"🛑 Muy pesado, saltando...")
-                return False
-            
+                print(f"⚠️ Archivo grande, pero intentando...")
+                # No retornamos false, seguimos intentando
+                
             print(f"⚠️ Intento {intento} fallido: {err}")
             if intento < config.MAX_RETRIES:
-                time.sleep(10 * intento)
+                time.sleep(5)
             else:
                 return False
