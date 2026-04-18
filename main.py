@@ -7,22 +7,25 @@ from core.motor import get_duration, crear_corte
 from core.enviar import enviar_a_telegram
 from core.logger import log
 
-# 🧠 SISTEMA INTELIGENTE: DETECTA AUTOMÁTICAMENTE DÓNDE ESTÁ CORRIENDO
+# 🧠 DETECTAR AUTOMÁTICAMENTE DÓNDE ESTAMOS CORRIENDO
 try:
     import imageio_ffmpeg
-    # ✅ SI ESTAMOS EN RENDER: Usamos la ruta exacta
     FFMPEG_RUTA = imageio_ffmpeg.get_ffmpeg_exe()
     os.environ["IMAGEIO_FFMPEG_EXE"] = FFMPEG_RUTA
     log.info("☁️ Modo Render activado")
 except ImportError:
-    # ✅ SI ESTAMOS EN TERMUX O PC: Usamos el comando normal
     FFMPEG_RUTA = "ffmpeg"
     log.info("📱 Modo Local / Termux activado")
 
 app = Flask(__name__, static_folder=STATIC_FOLDER)
 
-# 🚀 LÍMITE DE ARCHIVOS GIGANTES (HASTA 5 GB)
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024 * 1024
+# ==============================================
+# 🚀 CONFIGURACIÓN PARA ARCHIVOS GIGANTES
+# ==============================================
+# Aumentamos límite de peso
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024  # 10 GB MÁXIMO
+# Desactivamos restricciones estrictas
+app.url_map.strict_slashes = False
 
 def proceso_completo(ruta_video, ruta_portada, titulo):
     log.info(f"🚀 INICIANDO: {titulo}")
@@ -58,7 +61,7 @@ def proceso_completo(ruta_video, ruta_portada, titulo):
         else:
             log.error(f"❌ No se pudo generar parte {numero}")
 
-    # 🧹 Limpieza final automática
+    # 🧹 Limpieza final
     if os.path.exists(ruta_video): os.remove(ruta_video)
     if os.path.exists(ruta_portada): os.remove(ruta_portada)
 
@@ -71,40 +74,41 @@ def index():
 @app.route("/procesar", methods=["POST"])
 def procesar():
     try:
-        # Verificar que lleguen los archivos obligatorios
-        if 'video' not in request.files or 'portada' not in request.files:
+        # 🛡️ TRY EXCEPT GLOBAL PARA ATRAPAR LO QUE SEA
+        if not request.files:
+            raise Exception("No se recibió ningún archivo. ¿Es muy pesado?")
+
+        titulo = request.form.get('titulo', 'Sin Título')
+        
+        # Usamos .get() para que no explote si falta algo
+        video = request.files.get('video')
+        portada = request.files.get('portada')
+
+        if not video or not portada:
             raise Exception("Faltan archivos obligatorios (video o portada)")
 
-        video = request.files['video']
-        portada = request.files['portada']
-        titulo = request.form.get('titulo', 'Sin Título')
-
-        if video.filename == '' or portada.filename == '':
-            raise Exception("El nombre del archivo está vacío")
-
-        # Guardar archivos temporales con nombre único
+        # Guardar archivos
         ruta_v = os.path.join(UPLOAD_FOLDER, f"original_{int(time.time())}.mp4")
         ruta_p = os.path.join(STATIC_FOLDER, "portada_temp.jpg")
 
         video.save(ruta_v)
         portada.save(ruta_p)
 
-        # Mostrar tamaño en consola para saber si llegó bien
         tamaño_mb = os.path.getsize(ruta_v) / (1024*1024)
-        log.info(f"📥 Archivo recibido: {tamaño_mb:.1f} MB listo para procesar")
+        log.info(f"📥 Archivo recibido: {tamaño_mb:.1f} MB")
 
-        # Ejecutar en segundo plano para no congelar la web
+        # Ejecutar en segundo plano
         hilo = threading.Thread(target=proceso_completo, args=(ruta_v, ruta_p, titulo), daemon=True)
         hilo.start()
 
         return jsonify({
             "status": "ok",
-            "mensaje": f"🔥 Proceso iniciado!\nTítulo: {titulo}"
+            "mensaje": f"🔥 PROCESO INICIADO!\nTítulo: {titulo}\n✅ Puede cerrar, sigue corriendo..."
         })
 
     except Exception as e:
-        log.error(f"⚠️ Error en formulario: {str(e)}")
-        return jsonify({"status": "error", "mensaje": str(e)})
+        log.error(f"💥 ERROR CRÍTICO: {str(e)}")
+        return jsonify({"status": "error", "mensaje": str(e)}), 500
 
 if __name__ == "__main__":
     log.info("⚔️ MALLYCUTS - MODO DIOS ACTIVADO ⚔️")
