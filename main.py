@@ -2,14 +2,22 @@ from flask import Flask, render_template, request, jsonify
 import os
 import threading
 import time
-import imageio_ffmpeg  # ⬅️ IMPORTANTE PARA RENDER
 from config import *
 from core.motor import get_duration, crear_corte
 from core.enviar import enviar_a_telegram
 from core.logger import log
 
-# 📍 DECIRLE A PYTHON DÓNDE ESTÁ FFMPEG
-os.environ["IMAGEIO_FFMPEG_EXE"] = imageio_ffmpeg.get_ffmpeg_exe()
+# 🧠 SISTEMA INTELIGENTE: DETECTA AUTOMÁTICAMENTE DÓNDE ESTÁ CORRIENDO
+try:
+    import imageio_ffmpeg
+    # ✅ SI ESTAMOS EN RENDER: Usamos la ruta exacta
+    FFMPEG_RUTA = imageio_ffmpeg.get_ffmpeg_exe()
+    os.environ["IMAGEIO_FFMPEG_EXE"] = FFMPEG_RUTA
+    log.info("☁️ Modo Render activado")
+except ImportError:
+    # ✅ SI ESTAMOS EN TERMUX O PC: Usamos el comando normal
+    FFMPEG_RUTA = "ffmpeg"
+    log.info("📱 Modo Local / Termux activado")
 
 app = Flask(__name__, static_folder=STATIC_FOLDER)
 
@@ -18,7 +26,7 @@ def proceso_completo(ruta_video, ruta_portada, titulo):
 
     duracion = get_duration(ruta_video)
     if duracion == 0:
-        log.error("Video inválido o corrupto")
+        log.error("❌ Video inválido o corrupto")
         return
 
     total_partes = int(duracion // DURACION_POR_PARTE) + (1 if duracion % DURACION_POR_PARTE > 0 else 0)
@@ -47,11 +55,11 @@ def proceso_completo(ruta_video, ruta_portada, titulo):
         else:
             log.error(f"❌ No se pudo generar parte {numero}")
 
-    # Limpieza final
+    # 🧹 Limpieza final automática
     if os.path.exists(ruta_video): os.remove(ruta_video)
     if os.path.exists(ruta_portada): os.remove(ruta_portada)
 
-    log.info(f"🏁 FINALIZADO: {titulo}\n" + "="*40)
+    log.info(f"🏁 FINALIZADO: {titulo}\n" + "="*45)
 
 @app.route("/")
 def index():
@@ -64,7 +72,7 @@ def procesar():
         portada = request.files['portada']
         titulo = request.form.get('titulo', 'Sin Título')
 
-        # Guardar archivos temporales
+        # Guardar archivos temporales con nombre único
         ruta_v = os.path.join(UPLOAD_FOLDER, f"original_{int(time.time())}.mp4")
         ruta_p = os.path.join(STATIC_FOLDER, "portada_temp.jpg")
 
@@ -81,9 +89,10 @@ def procesar():
         })
 
     except Exception as e:
-        log.error(f"Error en formulario: {e}")
+        log.error(f"⚠️ Error en formulario: {e}")
         return jsonify({"status": "error", "mensaje": str(e)})
 
 if __name__ == "__main__":
     log.info("⚔️ MALLYCUTS - MODO DIOS ACTIVADO ⚔️")
+    log.info(f"🔧 Configurado para: {'RENDER' if 'IMAGEIO_FFMPEG_EXE' in os.environ else 'TERMUX/PC'}")
     app.run(host="0.0.0.0", port=5000, debug=False)
