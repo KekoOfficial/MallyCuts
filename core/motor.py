@@ -1,13 +1,19 @@
 import subprocess
 import os
+import imageio_ffmpeg  # ⬅️ IMPORTANTE PARA RENDER
 from config import *
 from core.logger import log
+
+# 📍 OBTENER RUTAS EXACTAS DE LOS EJECUTABLES
+FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
+# Para ffprobe usamos la misma carpeta o la ruta que venga con el paquete
+FFPROBE_BIN = FFMPEG_BIN.replace("ffmpeg", "ffprobe")
 
 def get_duration(ruta_video):
     """Obtiene duración total del video en segundos"""
     try:
         comando = [
-            "ffprobe", "-v", "error",
+            FFPROBE_BIN, "-v", "error",
             "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1",
             ruta_video
@@ -22,7 +28,7 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
     """⚡ MODO DIOS VELOCIDAD: TODO VERTICAL 1080x1920 | ULTRA RÁPIDO"""
     try:
         comando = [
-            "ffmpeg", "-y",
+            FFMPEG_BIN, "-y",
             "-ss", str(inicio),
             "-t", str(DURACION_POR_PARTE),
             "-i", ruta_entrada,
@@ -39,7 +45,7 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             "-c:v", "libx264",
             "-preset", PRESET,
             "-crf", CRF_QUALITY,
-            "-threads", "4",         # Usa todos los núcleos disponibles
+            "-threads", "4",
             "-pix_fmt", "yuv420p",
             "-c:a", "aac",
             "-b:a", "128k",
@@ -51,7 +57,7 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             comando,
             check=True,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,  # Silenciamos salida para ir más rápido
+            stderr=subprocess.DEVNULL,
             timeout=TIMEOUT_FFMPEG
         )
 
