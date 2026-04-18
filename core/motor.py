@@ -6,7 +6,7 @@ from core.logger import log
 
 # 📍 OBTENER RUTAS EXACTAS DE LOS EJECUTABLES
 FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
-# Para ffprobe usamos la misma carpeta o la ruta que venga con el paquete
+# Para ffprobe usamos la misma carpeta
 FFPROBE_BIN = FFMPEG_BIN.replace("ffmpeg", "ffprobe")
 
 def get_duration(ruta_video):
@@ -35,8 +35,8 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             "-i", ruta_portada,
             # 📱 FORMATO VERTICAL FORZADO
             "-filter_complex",
-            f"[0:v]scale=1080:1920:force_original_aspect_ratio=decrease[vid];"
-            f"[vid]pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black[bg];"
+            f"[0:v]scale=1080:190:force_original_aspect_ratio=decrease[vid];"
+            f"[vid]pad=1080x1920:(ow-iw)/2:(oh-ih)/2:color=black[bg];"
             f"[1:v]scale=w=400:h=-1[logo];"
             f"[bg][logo]overlay=(W-w)/2:30[outv]",
             # ⚡ CONFIGURACIÓN DE VELOCIDAD MÁXIMA
