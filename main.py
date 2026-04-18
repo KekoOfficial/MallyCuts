@@ -19,13 +19,8 @@ except ImportError:
 
 app = Flask(__name__, static_folder=STATIC_FOLDER)
 
-# ==============================================
-# 🚀 CONFIGURACIÓN PARA ARCHIVOS GIGANTES
-# ==============================================
-# Aumentamos límite de peso
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024  # 10 GB MÁXIMO
-# Desactivamos restricciones estrictas
-app.url_map.strict_slashes = False
+# 🚀 LÍMITE DE ARCHIVOS GIGANTES (HASTA 10 GB)
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024
 
 def proceso_completo(ruta_video, ruta_portada, titulo):
     log.info(f"🚀 INICIANDO: {titulo}")
@@ -74,18 +69,16 @@ def index():
 @app.route("/procesar", methods=["POST"])
 def procesar():
     try:
-        # 🛡️ TRY EXCEPT GLOBAL PARA ATRAPAR LO QUE SEA
-        if not request.files:
-            raise Exception("No se recibió ningún archivo. ¿Es muy pesado?")
+        # 🛡️ Protección total
+        if 'video' not in request.files or 'portada' not in request.files:
+            raise Exception("Faltan archivos obligatorios")
 
+        video = request.files['video']
+        portada = request.files['portada']
         titulo = request.form.get('titulo', 'Sin Título')
-        
-        # Usamos .get() para que no explote si falta algo
-        video = request.files.get('video')
-        portada = request.files.get('portada')
 
-        if not video or not portada:
-            raise Exception("Faltan archivos obligatorios (video o portada)")
+        if video.filename == '' or portada.filename == '':
+            raise Exception("Archivos vacíos")
 
         # Guardar archivos
         ruta_v = os.path.join(UPLOAD_FOLDER, f"original_{int(time.time())}.mp4")
@@ -103,14 +96,24 @@ def procesar():
 
         return jsonify({
             "status": "ok",
-            "mensaje": f"🔥 PROCESO INICIADO!\nTítulo: {titulo}\n✅ Puede cerrar, sigue corriendo..."
+            "mensaje": f"🔥 PROCESO INICIADO!\nTítulo: {titulo}"
         })
 
     except Exception as e:
-        log.error(f"💥 ERROR CRÍTICO: {str(e)}")
+        log.error(f"💥 ERROR: {str(e)}")
         return jsonify({"status": "error", "mensaje": str(e)}), 500
 
 if __name__ == "__main__":
     log.info("⚔️ MALLYCUTS - MODO DIOS ACTIVADO ⚔️")
     log.info(f"🔧 Configurado para: {'RENDER' if 'IMAGEIO_FFMPEG_EXE' in os.environ else 'TERMUX/PC'}")
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    
+    # ==============================================
+    # 🚀 SERVIDOR MÁS FUERTE PARA TERMUX
+    # ==============================================
+    try:
+        from waitress import serve
+        log.info("⚡ Servidor WAITRESS activado (MÁS RÁPIDO Y SEGURO)")
+        serve(app, host="0.0.0.0", port=5000, connection_limit=1000)
+    except ImportError:
+        log.info("🔧 Usando servidor normal")
+        app.run(host="0.0.0.0", port=5000, debug=False)
