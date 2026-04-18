@@ -19,7 +19,7 @@ def get_duration(ruta_video):
         return 0
 
 def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, titulo):
-    """✅ MODO FORZADO: TODO SALE VERTICAL 1080x1920 | SIN DETECCIONES | SIN ERRORES"""
+    """⚡ MODO DIOS VELOCIDAD: TODO VERTICAL 1080x1920 | ULTRA RÁPIDO"""
     try:
         comando = [
             "ffmpeg", "-y",
@@ -27,18 +27,19 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             "-t", str(DURACION_POR_PARTE),
             "-i", ruta_entrada,
             "-i", ruta_portada,
-            # 🚀 FORMATO VERTICAL FORZADO
+            # 📱 FORMATO VERTICAL FORZADO
             "-filter_complex",
             f"[0:v]scale=1080:1920:force_original_aspect_ratio=decrease[vid];"
             f"[vid]pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black[bg];"
             f"[1:v]scale=w=400:h=-1[logo];"
             f"[bg][logo]overlay=(W-w)/2:30[outv]",
-            # CONFIGURACIÓN DE SALIDA SEGURA
+            # ⚡ CONFIGURACIÓN DE VELOCIDAD MÁXIMA
             "-map", "[outv]",
             "-map", "0:a",
             "-c:v", "libx264",
             "-preset", PRESET,
             "-crf", CRF_QUALITY,
+            "-threads", "4",         # Usa todos los núcleos disponibles
             "-pix_fmt", "yuv420p",
             "-c:a", "aac",
             "-b:a", "128k",
@@ -50,14 +51,14 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             comando,
             check=True,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,  # Silenciamos salida para ir más rápido
             timeout=TIMEOUT_FFMPEG
         )
 
         if os.path.exists(ruta_salida) and os.path.getsize(ruta_salida) > 300000:
             log.info(f"✅ Parte {parte} generada correctamente")
             
-            # 📝 TEXTO EXACTO QUE PEDISTE
+            # 📝 TEXTO EXACTO
             return (
                 f"🎬 {titulo}\n"
                 f"💎 CAPÍTULO: {parte} / {total}\n"
@@ -69,7 +70,7 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
             return None
 
     except subprocess.CalledProcessError as e:
-        log.error(f"💥 Error FFmpeg Parte {parte}: {e.stderr.decode()}")
+        log.error(f"💥 Error FFmpeg Parte {parte}")
         return None
     except Exception as e:
         log.error(f"❌ Error general Parte {parte}: {str(e)}")
