@@ -9,4 +9,3 @@ TIMEOUT_SEND = 300
 
 # 📂 RUTAS
 TEMP_FOLDER = "videos/output"
-
