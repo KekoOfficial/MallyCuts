@@ -3,20 +3,15 @@ import os
 from config import *
 from core.logger import log
 
-# 🧠 SISTEMA INTELIGENTE: DETECTA AUTOMÁTICAMENTE EL ENTORNO
+# 🧠 DETECCIÓN AUTOMÁTICA DE FFMPEG
 try:
     import imageio_ffmpeg
-    # ✅ SI ESTAMOS EN RENDER: Usamos la ruta exacta
     FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
 except ImportError:
-    # ✅ SI ESTAMOS EN TERMUX O PC: Usamos el comando normal
     FFMPEG_BIN = "ffmpeg"
 
-# ==============================================
-# 📏 OBTENER DURACIÓN DEL VIDEO
-# ==============================================
 def get_duration(ruta_video):
-    """Obtiene duración de forma eficiente"""
+    """Obtiene duración del video"""
     try:
         comando = [
             FFMPEG_BIN, "-i", ruta_video,
@@ -26,43 +21,31 @@ def get_duration(ruta_video):
         resultado = subprocess.run(comando, capture_output=True, text=True)
         return float(resultado.stdout.strip())
     except Exception as e:
-        log.error(f"No se pudo leer duración: {str(e)}")
+        log.error(f"❌ No se pudo leer duración: {str(e)}")
         return 0
 
-# ==============================================
-# ⚡ FUNCIÓN PRINCIPAL DE CORTE
-# ==============================================
 def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, titulo):
     """
-    ⚡ MODO DIOS: VERTICAL 1080x1920
-    - Auto-detección de velocidad
-    - Mantiene calidad y pone portada
+    ⚡ MODO DIOS: Genera el corte vertical con portada
     """
     try:
-        # ==============================================
-        # 🚀 COMANDO PRINCIPAL CON TODO LO VISUAL
-        # ==============================================
         comando = [
             FFMPEG_BIN, "-y",
             "-ss", str(inicio),
             "-t", str(DURACION_POR_PARTE),
             "-i", ruta_entrada,
             "-i", ruta_portada,
-            
-            # 📱 FILTRO COMPLEJO: ESCALAR + CENTRAR + PONER PORTADA
             "-filter_complex",
             f"[0:v]scale=1080:1920:force_original_aspect_ratio=decrease[vid];"
             f"[vid]pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black[bg];"
             f"[1:v]scale=w=400:h=-1[logo];"
             f"[bg][logo]overlay=(W-w)/2:(oh-h)/4:format=auto[outv]",
-            
-            # ⚡ SALIDA
             "-map", "[outv]",
             "-map", "0:a",
             "-c:v", "libx264",
-            "-preset", PRESET,      # Usa la config rapida de config.py
+            "-preset", PRESET,
             "-crf", CRF_QUALITY,
-            "-threads", THREADS,   # Usa todos los núcleos
+            "-threads", THREADS,
             "-pix_fmt", "yuv420p",
             "-c:a", "aac",
             "-b:a", "128k",
@@ -71,19 +54,19 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
         ]
 
         # ==============================================
-        # ▶️ EJECUTAR PROCESO
+        # ▶️ EJECUTAR Y CAPTURAR TODO
         # ==============================================
-        proceso = subprocess.run(
+        resultado = subprocess.run(
             comando,
             capture_output=True,
             timeout=TIMEOUT_FFMPEG
         )
 
         # ==============================================
-        # ✅ VERIFICACIÓN DE ÉXITO
+        # ✅ VERIFICAR SI FUNCIONÓ
         # ==============================================
-        if proceso.returncode == 0 and os.path.exists(ruta_salida) and os.path.getsize(ruta_salida) > 300000:
-            log.info(f"✅ Parte {parte}/{total} lista")
+        if resultado.returncode == 0 and os.path.exists(ruta_salida) and os.path.getsize(ruta_salida) > 300000:
+            log.info(f"✅ Parte {parte}/{total} generada correctamente")
             return (
                 f"🎬 {titulo}\n"
                 f"💎 CAPÍTULO: {parte} / {total}\n"
@@ -91,16 +74,23 @@ def crear_corte(ruta_entrada, ruta_salida, inicio, ruta_portada, parte, total, t
                 f"🔗 @MallySeries"
             )
         else:
-            # Si falla, mostramos el error real para depurar
-            if proceso.stderr:
-                error_mensaje = proceso.stderr.decode('utf-8', errors='ignore')[-500:]
-                log.error(f"💥 Detalle error FFmpeg: {error_mensaje}")
-            log.error(f"❌ Falló generación de Parte {parte}")
+            # ==============================================
+            # ❌ MOSTRAR ERROR COMPLETO
+            # ==============================================
+            log.error(f"💥 FFMPEG FALLÓ EN PARTE {parte}")
+            log.error(f"📝 Código de error: {resultado.returncode}")
+            
+            # Mostrar las últimas líneas del error real
+            if resultado.stderr:
+                # Tomamos los últimos 1500 caracteres para no llenar todo
+                error_texto = resultado.stderr[-1500:] if len(resultado.stderr) > 1500 else resultado.stderr
+                log.error(f"🔍 MENSAJE DE ERROR:\n{error_texto}")
+            
             return None
 
     except subprocess.TimeoutExpired:
-        log.error(f"⏱️ Tiempo agotado procesando Parte {parte}")
+        log.error(f"⏱️ TIEMPO AGOTADO: Parte {parte} tardó demasiado")
         return None
     except Exception as e:
-        log.error(f"💥 Error crítico Parte {parte}: {str(e)}")
+        log.error(f"💥 ERROR INESPERADO Parte {parte}: {str(e)}")
         return None
