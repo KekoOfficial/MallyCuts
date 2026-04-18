@@ -1,31 +1,25 @@
 import subprocess
+import config
+import os
 
-def cortar_video(ruta_entrada, ruta_salida):
-    try:
-        print("✂️ Cortando a 60s - Modo 1080p")
-        
-        comando = [
-            "ffmpeg", "-y",
-            "-ss", "0",
-            "-i", ruta_entrada,
-            "-t", "60",                   # ⏱️ Exactos 60 segundos
-            "-vf", "scale=1920:1080",    # 📺 Full HD
-            "-c:v", "libx264",
-            "-preset", "ultrafast",      # ⚡ Velocidad máxima
-            "-crf", "23",                # 🎬 Calidad perfecta
-            "-c:a", "aac",
-            "-b:a", "128k",
-            ruta_salida
-        ]
-        
-        resultado = subprocess.run(comando, capture_output=True)
-        
-        if resultado.returncode == 0:
-            return True
-        else:
-            print(f"❌ Error: {resultado.stderr}")
-            return False
-            
-    except Exception as e:
-        print(f"💥 Error: {str(e)}")
-        return False
+def extraer_segmento(path_input, n):
+    inicio = (n - 1) * config.CLIP_DURATION
+    path_output = f"{config.TEMP_FOLDER}/parte_{n}.mp4"
+    
+    # 🔥 MODO VERTICAL 1080x1920
+    cmd = [
+        'ffmpeg', '-y',
+        '-ss', str(inicio),
+        '-i', path_input,
+        '-t', str(config.CLIP_DURATION),
+        '-vf', 'scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:-1:-1:color=black',
+        '-c:v', 'libx264',
+        '-preset', 'ultrafast',
+        '-crf', '23',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        path_output
+    ]
+    
+    subprocess.run(cmd, capture_output=True)
+    return path_output
