@@ -1,19 +1,29 @@
 from flask import Flask, render_template, request, jsonify
 import os
 import threading
-from core.cortar import cortar_video
-from core.enviar import enviar_video
+import time
+from core.cortar import extraer_segmento
+from core.enviar import despachar_a_telegram
+import config
 
 app = Flask(__name__)
 
-# Rutas
-INPUT_FOLDER = "videos/input"
-OUTPUT_FOLDER = "videos/output"
-
-os.makedirs(INPUT_FOLDER, exist_ok=True)
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+# Crear carpetas
+os.makedirs("videos/input", exist_ok=True)
+os.makedirs(config.TEMP_FOLDER, exist_ok=True)
 
 PROCESANDO = False
+
+class MallyLogger:
+    def __init__(self, nombre, total):
+        self.nombre = nombre.strip().upper()
+        self.total = total
+        
+    def exito(self, n):
+        return (f"🎬 <b>{self.nombre}</b>\n"
+                f"💎 <b>CAPÍTULO:</b> {n} / {self.total}\n"
+                f"✅ <i>Contenido Verificado</i>\n"
+                f"🔗 @MallySeries")
 
 @app.route("/")
 def index():
@@ -30,45 +40,46 @@ def procesar():
         return jsonify({"status": "error", "mensaje": "Selecciona un video"})
     
     archivo = request.files["video"]
-    titulo = request.form.get("titulo", "Sin Titulo")
+    titulo = request.form.get("titulo", "SIN TITULO")
     
-    if archivo.filename == "":
-        return jsonify({"status": "error", "mensaje": "Archivo vacío"})
-    
-    # Guardar archivo
-    ruta_entrada = os.path.join(INPUT_FOLDER, archivo.filename)
+    ruta_entrada = os.path.join("videos/input", archivo.filename)
     archivo.save(ruta_entrada)
     
-    # Ruta de salida
-    nombre_salida = f"cortado_{archivo.filename}"
-    ruta_salida = os.path.join(OUTPUT_FOLDER, nombre_salida)
-    
-    print(f"📥 Recibido: {titulo}")
     PROCESANDO = True
     
     def trabajo():
         global PROCESANDO
-        # ✂️ Cortar y escalar a 1080p
-        ok = cortar_video(ruta_entrada, ruta_salida)
         
-        if ok:
-            print("✅ Video listo")
-            # 📤 Enviar a Telegram
-            enviar_video(ruta_salida, titulo)
-            print("📤 Enviado a Telegram")
-        else:
-            print("❌ Falló el proceso")
+        # Calcular cuántas partes
+        res = os.popen(f'ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "{ruta_entrada}"').read()
+        duracion = float(res)
+        total_partes = int(duracion // config.CLIP_DURATION) + 1
+        
+        log = MallyLogger(titulo, total_partes)
+        
+        print(f"🔥 Iniciando: {titulo} | Partes: {total_partes}")
+        
+        for i in range(1, total_partes + 1):
+            print(f"✂️ Cortando parte {i}/{total_partes}")
+            ruta_salida = extraer_segmento(ruta_entrada, i)
             
+            if os.path.exists(ruta_salida):
+                print(f"📤 Enviando parte {i}...")
+                caption = log.exito(i)
+                despachar_a_telegram(ruta_salida, caption)
+                os.remove(ruta_salida)
+        
         # Limpiar
-        try: os.remove(ruta_entrada)
-        except: pass
+        if os.path.exists(ruta_entrada):
+            os.remove(ruta_entrada)
+            
         PROCESANDO = False
+        print("✅ MISION COMPLETADA")
     
     threading.Thread(target=trabajo, daemon=True).start()
     
-    return jsonify({"status": "ok", "mensaje": "🚀 Procesando y enviando..."})
+    return jsonify({"status": "ok", "mensaje": f"🚀 Procesando {total_partes} partes..."})
 
 if __name__ == "__main__":
-    print("⚡ MallyCuts MINI PRO iniciado")
-    print("🌐 Abre: http://localhost:5000")
+    print("⚡ MALLYCUTS EXPRESS INICIADO")
     app.run(host="0.0.0.0", port=5000, debug=False)
