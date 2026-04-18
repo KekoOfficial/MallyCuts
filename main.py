@@ -26,7 +26,7 @@ class MallyLogger:
         return (f"🎬 <b>{self.nombre}</b>\n"
                 f"💎 <b>CAPÍTULO:</b> {n} / {self.total}\n"
                 f"✅ <i>Contenido Verificado</i>\n"
-                f"🔗 @MallySeries")
+                f"🔗 @MallyUmbrae")
 
 # --- HILOS DE ALTA VELOCIDAD ---
 def productor(ruta_video, total_partes, log):
