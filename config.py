@@ -10,27 +10,43 @@ UPLOAD_FOLDER = os.path.join(BASE_DIR, "videos")
 STATIC_FOLDER = os.path.join(BASE_DIR, "static")
 LOGS_FOLDER = os.path.join(BASE_DIR, "data", "logs")
 
-# ⚡⚡⚡ CONFIGURACIÓN DE VELOCIDAD MÁXIMA ⚡⚡⚡
-PRESET = "veryfast"      # MODO RÁPIDO EXTREMO (antes era slow)
-CRF_QUALITY = "26"       # Calidad buena pero archivo ligero y rápido
-THREADS = "4"            # Usa todos los núcleos del procesador
+# ==============================================
+# ⚡⚡⚡ CONFIGURACIÓN DE VELOCIDAD EXTREMA ⚡⚡⚡
+# ==============================================
+# Para que corte y procese lo más rápido posible
+# sin consumir tanta memoria
 
-# 🎬 FORMATO DE SALIDA
-RESOLUCION = "1080:1920" # MODO VERTICAL FORZADO
-DURACION_POR_PARTE = 60  # 1 minuto cada parte
+PRESET = "ultrafast"      # 🚀 MÁS RÁPIDO POSIBLE (antes veryfast)
+CRF_QUALITY = "27"        # ⚖️ Compresión ideal: Rápido + Calidad decente
+THREADS = "4"             # 🧠 Usa todos los núcleos disponibles
 
-# 🔊 AUDIO
+# 🎬 FORMATO Y RESOLUCIÓN
+RESOLUCION = "1080:1920" # 📱 MODO VERTICAL FORZADO
+DURACION_POR_PARTE = 50  # ⏱️ Partes de 50 seg (termina más rápido cada corte)
+
+# 🎥 CODECS Y CALIDAD
 CODEC_VIDEO = "libx264"
 CODEC_AUDIO = "aac"
 BITRATE_AUDIO = "128k"
+PIXEL_FORMAT = "yuv420p" # Compatibilidad total
 
-# ⏱️ TIEMPOS DE ESPERA
-TIMEOUT_FFMPEG = 600     # 10 minutos máximo por corte
-TIMEOUT_TELEGRAM = 300   # 5 minutos para subir
+# ⏱️ TIEMPOS Y SEGURIDAD
+TIMEOUT_FFMPEG = 900      # ⏳ 15 minutos máximo por parte (para videos largos)
+TIMEOUT_TELEGRAM = 300    # ⏳ 5 minutos para subir
 REINTENTOS_ENVIO = 3
-PAUSA_ENTRE_ENVIOS = 2
+PAUSA_ENTRE_ENVIOS = 3    # Pequeña pausa para no saturar
 
 # 📂 CREAR CARPETAS AUTOMÁTICAMENTE
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(STATIC_FOLDER, exist_ok=True)
 os.makedirs(LOGS_FOLDER, exist_ok=True)
+
+# ==============================================
+# ✅ ESTADO DEL SISTEMA
+# ==============================================
+print("="*50)
+print("⚔️ MALLYCUTS - CONFIGURACIÓN CARGADA ⚔️")
+print(f"⚡ Modo Velocidad: {PRESET.upper()}")
+print(f"📏 Resolución: {RESOLUCION}")
+print(f"⏱️ Duración por parte: {DURACION_POR_PARTE}s")
+print("="*50)
