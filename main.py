@@ -20,23 +20,22 @@ except ImportError:
 app = Flask(__name__, static_folder=STATIC_FOLDER)
 
 # ==============================================
-# ⚙️ CONFIGURACIÓN SEGURA
+# 🚀 CONFIGURACIÓN PARA QUE NO FALLE NUNCA
 # ==============================================
-app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2 GB Límite realista
-app.url_map.strict_slashes = False
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024  # 10 GB
+app.config['MAX_FORM_PARTS'] = 1000
+app.config['MAX_FORM_MEMORY_SIZE'] = 10 * 1024 * 1024 * 1024
 
 # 🛡️ CONTROL DE CONCURRENCIA
 PROCESO_ACTIVO = False
-COLA_TAREAS = []
 
 def proceso_completo(ruta_video, ruta_portada, titulo):
     """Función principal con manejo de recursos"""
     global PROCESO_ACTIVO
-    
     try:
         log.info(f"🚀 INICIANDO: {titulo}")
-
         duracion = get_duration(ruta_video)
+        
         if duracion == 0:
             raise Exception("Video inválido o corrupto")
 
@@ -46,22 +45,16 @@ def proceso_completo(ruta_video, ruta_portada, titulo):
         for i in range(total_partes):
             numero = i + 1
             ruta_salida = os.path.join(UPLOAD_FOLDER, f"parte_{numero:03d}.mp4")
-
             log.info(f"✂️ Procesando parte {numero}/{total_partes}...")
 
             caption = crear_corte(
-                ruta_video,
-                ruta_salida,
-                inicio = i * DURACION_POR_PARTE,
-                ruta_portada = ruta_portada,
-                parte = numero,
-                total = total_partes,
-                titulo = titulo
+                ruta_video, ruta_salida, i * DURACION_POR_PARTE,
+                ruta_portada, numero, total_partes, titulo
             )
 
             if caption:
                 if not enviar_a_telegram(ruta_salida, caption):
-                    log.error("⛔ Proceso detenido por fallos consecutivos")
+                    log.error("⛔ Proceso detenido por fallos")
                     break
             else:
                 log.error(f"❌ No se pudo generar parte {numero}")
@@ -78,9 +71,8 @@ def proceso_completo(ruta_video, ruta_portada, titulo):
         try:
             if os.path.exists(ruta_portada): os.remove(ruta_portada)
         except: pass
-        
         PROCESO_ACTIVO = False
-        log.info("🔓 Sistema libre para nueva tarea")
+        log.info("🔓 Sistema libre")
 
 @app.route("/")
 def index():
@@ -95,12 +87,12 @@ def procesar():
         if PROCESO_ACTIVO:
             return jsonify({
                 "status": "ocupado",
-                "mensaje": "⏳ ESPERA... Hay un proceso activo.\nEl sistema procesa uno a la vez para no colapsar."
+                "mensaje": "⏳ ESPERA... Hay un proceso activo."
             }), 429
 
         # 📥 Recibir datos
         if 'video' not in request.files or 'portada' not in request.files:
-            raise Exception("Faltan archivos obligatorios")
+            raise Exception("Faltan archivos")
 
         video = request.files['video']
         portada = request.files['portada']
@@ -109,7 +101,7 @@ def procesar():
         if video.filename == '':
             raise Exception("Video vacío")
 
-        # 📂 NOMBRES ÚNICOS PARA NO PISAR NADA
+        # 📂 NOMBRES ÚNICOS
         timestamp = int(time.time())
         ruta_v = os.path.join(UPLOAD_FOLDER, f"original_{timestamp}.mp4")
         ruta_p = os.path.join(STATIC_FOLDER, f"portada_{timestamp}.jpg")
@@ -129,7 +121,7 @@ def procesar():
 
         return jsonify({
             "status": "ok",
-            "mensaje": f"🔥 PROCESO INICIADO!\nTítulo: {titulo}\n✅ Modo Estable Activado"
+            "mensaje": f"🔥 PROCESO INICIADO!\nTítulo: {titulo}"
         })
 
     except Exception as e:
@@ -137,15 +129,18 @@ def procesar():
         PROCESO_ACTIVO = False
         return jsonify({"status": "error", "mensaje": str(e)}), 500
 
+# ==============================================
+# 🚀 SERVIDOR FUERTE PARA TERMUX
+# ==============================================
 if __name__ == "__main__":
-    log.info("⚔️ MALLYCUTS - MODO DIOS ESTABLE ⚔️")
+    log.info("⚔️ MALLYCUTS - MODO DIOS WEB ⚔️")
     log.info(f"🔧 Configurado para: {'RENDER' if 'IMAGEIO_FFMPEG_EXE' in os.environ else 'TERMUX/PC'}")
     
-    # 🚀 Servidor robusto
+    # 🚀 INTENTAR USAR WAITRESS (EL MEJOR SERVIDOR)
     try:
         from waitress import serve
-        log.info("⚡ Servidor WAITRESS activado")
-        serve(app, host="0.0.0.0", port=5000)
+        log.info("⚡ Servidor WAITRESS activado (SIN ERRORES)")
+        serve(app, host="0.0.0.0", port=5000, threads=10)
     except ImportError:
         log.info("🔧 Servidor Normal activado")
         app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
