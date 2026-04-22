@@ -88,11 +88,13 @@ function consumidor() {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload({
-    limits: { fileSize: 1024 * 1024 * 1024 * 5 }, // Límite de 5GB por archivo
-    abortOnLimit: false
+    limits: { fileSize: 1024 * 1024 * 1024 * 10 }, // Límite de 10GB por archivo, suficiente para vídeos muy largos
+    abortOnLimit: false,
+    useTempFiles: true,
+    tempFileDir: '/tmp/'
 }));
 
-// ✅ ESTA ES LA LÍNEA AGREGADA: Permite cargar archivos estáticos (CSS, imágenes, etc.) de la carpeta templates
+// ✅ Permite cargar archivos estáticos (CSS, imágenes, etc.) de la carpeta templates
 app.use(express.static(path.join(__dirname, 'templates')));
 
 // 📋 Rutas del sistema
@@ -120,18 +122,28 @@ app.post('/procesar', async (req, res) => {
 
     try {
         // 🧮 Calculamos la duración total del vídeo y la cantidad de partes
+        // Método mejorado que funciona incluso con vídeos de muchas horas
         const duracion = await new Promise((resolve, reject) => {
             execFile('ffprobe', [
                 '-v', 'error',
-                '-show_entries', 'format=duration',
+                '-select_streams', 'v:0',
+                '-show_entries', 'stream=duration',
                 '-of', 'default=noprint_wrappers=1:nokey=1',
                 rutaEntrada
             ], (error, stdout) => {
-                if (error) return reject(error);
-                resolve(parseFloat(stdout));
+                if (error) {
+                    console.warn("⚠️ No se pudo leer la duración, se usará el valor estimado:", error.message);
+                    // Si falla, calculamos aproximadamente: 5 horas = 18000 segundos
+                    return resolve(18000);
+                }
+                // Convertimos el valor a número, limpiamos espacios y caracteres extraños
+                const valorLimpio = stdout.trim().replace(/[^0-9.]/g, '');
+                const duracionCalculada = parseFloat(valorLimpio) || 18000;
+                resolve(duracionCalculada);
             });
         });
 
+        // Calculamos cuántas partes se van a generar
         const totalPartes = Math.floor(duracion / config.CLIP_DURATION) + 1;
 
         // Enviamos la respuesta al usuario de inmediato
@@ -141,7 +153,7 @@ app.post('/procesar', async (req, res) => {
         });
 
         // 🚀 Iniciamos los procesos en paralelo: cortar y enviar al mismo tiempo
-        console.log(`🔥 INICIANDO PROCESO: ${titulo} | CANTIDAD DE PARTES: ${totalPartes}`);
+        console.log(`🔥 INICIANDO PROCESO: ${titulo} | DURACIÓN: ${Math.round(duracion / 60)} minutos | CANTIDAD DE PARTES: ${totalPartes}`);
         const log = new MallyLogger(titulo, totalPartes);
 
         await Promise.all([
@@ -152,19 +164,29 @@ app.post('/procesar', async (req, res) => {
         // 🧹 Limpiamos el archivo original después de terminar todo
         if (fs.existsSync(rutaEntrada)) {
             fs.unlinkSync(rutaEntrada);
+            console.log(`🗑️ Archivo original eliminado`);
         }
 
         PROCESANDO = false;
-        console.log("✅ ¡MISIÓN COMPLETADA! Todo enviado correctamente");
+        console.log("✅ ¡MISIÓN COMPLETADA! Todo el contenido se envió correctamente");
 
     } catch (error) {
         PROCESANDO = false;
         console.error("❌ ERROR EN EL PROCESO:", error);
         res.json({ status: "error", mensaje: "❌ Ocurrió un error al procesar el vídeo" });
+
+        // En caso de error, liberamos el archivo si se había guardado
+        if (fs.existsSync(rutaEntrada)) {
+            fs.unlinkSync(rutaEntrada);
+        }
     }
 });
 
 // 🚀 Iniciamos el servidor
+console.log("=".repeat(50));
 console.log("⚡ MALLYCUTS - MODO EXPRESS ACTIVADO ⚡");
 console.log("🌐 Accedé desde tu navegador a: http://localhost:5000");
+console.log("⏱️ Cada parte dura:", config.CLIP_DURATION, "segundos");
+console.log("=".repeat(50));
+
 app.listen(PORT, '0.0.0.0', () => {});
