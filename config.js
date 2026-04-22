@@ -2,6 +2,8 @@
 module.exports = {
     TOKEN: "8459092113:AAFFJ0b7H5gFzYjgYGk_g_57cI709dhVRhI",
     CHAT_ID: "-1003983527231",
+    CHAT_ID: "-1003706372741",
+    
 
     // ⚙️ AJUSTES GENERALES
     CLIP_DURATION: 60,       // Duración de cada parte en segundos
