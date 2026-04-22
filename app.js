@@ -32,7 +32,7 @@ class GeneradorMensajes {
     obtenerMensajeParte(numeroParte) {
         return `🎬 <b>${this.nombreContenido}</b>
 📌 <b>Parte:</b> ${numeroParte} / ${this.totalPartes}
-✅ Contenido procesado y verificado
+✅ Verificado 
 🔗 <b>Canal:</b> ${this.nombreCanalPublico}`;
     }
 }
