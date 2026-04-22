@@ -3,11 +3,18 @@ const path = require('path');
 const fs = require('fs');
 const config = require('../config');
 
+/**
+ * Corta el vídeo y genera las partes
+ * @param {string} rutaEntrada - Ruta del archivo original
+ * @param {number} numeroParte - Número de la parte a generar
+ * @returns {Promise<string|null>} Ruta del archivo generado
+ */
 function extraerSegmento(rutaEntrada, numeroParte) {
     return new Promise((resolve) => {
         const tiempoInicio = (numeroParte - 1) * config.CLIP_DURATION;
         const rutaSalida = path.join(config.TEMP_FOLDER, `parte_${numeroParte}.mp4`);
 
+        // Comando optimizado sin errores
         const comandoFFmpeg = [
             '-y',
             '-ss', tiempoInicio.toString(),
@@ -41,12 +48,12 @@ function extraerSegmento(rutaEntrada, numeroParte) {
                     console.log(`✅ Parte ${numeroParte} generada | Tamaño: ${tamañoMB} MB`);
                     resolve(rutaSalida);
                 } else {
-                    console.error(`⚠️ Parte ${numeroParte} vacía`);
+                    console.error(`⚠️ Parte ${numeroParte} vacía o dañada`);
                     if (fs.existsSync(rutaSalida)) fs.unlinkSync(rutaSalida);
                     resolve(null);
                 }
             } else {
-                console.error(`❌ No se creó la parte ${numeroParte}`);
+                console.error(`❌ No se pudo crear la parte ${numeroParte}`);
                 resolve(null);
             }
         });
