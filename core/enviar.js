@@ -2,10 +2,8 @@ const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
 const config = require('../config');
 
-const bot = new TelegramBot(config.TOKEN, { 
-    polling: false,
-    filepath: false
-});
+// Inicialización simple
+const bot = new TelegramBot(config.TOKEN, { polling: false });
 
 async function despacharATelegram(rutaArchivo, mensaje) {
     if (!fs.existsSync(rutaArchivo)) {
@@ -13,14 +11,15 @@ async function despacharATelegram(rutaArchivo, mensaje) {
         return false;
     }
 
-    console.log(`📤 Enviando contenido al canal privado...`);
-    let enviadoCorrectamente = false;
+    console.log(`📤 Enviando contenido al canal...`);
+    let enviado = false;
 
+    // Intentos de envío
     for (let intento = 1; intento <= config.MAX_RETRIES; intento++) {
         try {
-            // ✅ Forma correcta de enviar el archivo, que funciona siempre
+            // Método correcto y probado
             await bot.sendVideo(
-                config.CANAL_PRIVADO.ID,
+                config.CANAL_ID,
                 fs.createReadStream(rutaArchivo),
                 {
                     caption: mensaje,
@@ -32,8 +31,8 @@ async function despacharATelegram(rutaArchivo, mensaje) {
                 }
             );
 
-            console.log(`✅ ¡ENVIADO CORRECTAMENTE! Todo guardado en tu canal privado`);
-            enviadoCorrectamente = true;
+            console.log(`✅ ¡ENVIADO CORRECTAMENTE!`);
+            enviado = true;
             break;
 
         } catch (error) {
@@ -53,7 +52,7 @@ async function despacharATelegram(rutaArchivo, mensaje) {
         }
     }
 
-    return enviadoCorrectamente;
+    return enviado;
 }
 
 module.exports = { despacharATelegram };
