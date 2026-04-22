@@ -21,7 +21,7 @@ fs.mkdirSync(TEMP_UPLOAD_FOLDER, { recursive: true });
 let PROCESANDO = false;
 const cola = [];
 
-// 🎨 Clase para generar los mensajes que se envían a Telegram
+// 🎨 Clase para generar mensajes
 class MallyLogger {
     constructor(nombre, total) {
         this.nombre = nombre.trim().toUpperCase();
@@ -33,14 +33,14 @@ class MallyLogger {
     }
 }
 
-// ⚡ Productor: Corta los segmentos y los agrega a la cola
+// ⚡ Cortar vídeos
 function productor(rutaVideo, totalPartes, log) {
     return new Promise(async (resolve) => {
         for (let n = 1; n <= totalPartes; n++) {
             console.log(`⚡ CORTANDO PARTE ${n}/${totalPartes}`);
             const rutaArchivo = await cortar.extraerSegmento(rutaVideo, n);
             
-            if (fs.existsSync(rutaArchivo)) {
+            if (rutaArchivo && fs.existsSync(rutaArchivo)) {
                 cola.push({
                     n: n,
                     path: rutaArchivo,
@@ -53,12 +53,12 @@ function productor(rutaVideo, totalPartes, log) {
     });
 }
 
-// 📤 Consumidor: Envía los archivos mientras se siguen cortando
+// 📤 Enviar archivos
 function consumidor() {
     return new Promise(async (resolve) => {
         while (true) {
             while (cola.length === 0) {
-                await new Promise(resolve => setTimeout(resolve, 100));
+                await new Promise(resolve => setTimeout(resolve, 200));
             }
 
             const item = cola.shift();
@@ -68,7 +68,7 @@ function consumidor() {
             const enviado = await enviar.despacharATelegram(item.path, item.caption);
             
             if (enviado) {
-                console.log(`✅ PARTE ${item.n} ENVIADA CORRECTAMENTE`);
+                console.log(`✅ PARTE ${item.n} ENVIADA`);
             }
 
             if (fs.existsSync(item.path)) {
@@ -79,19 +79,22 @@ function consumidor() {
     });
 }
 
-// 🛠️ CONFIGURACIÓN DE SUBIDA MEJORADA Y MÁS RÁPIDA
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// 🛠️ CONFIGURACIÓN OPTIMIZADA PARA TERMUX
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Configuración de subida ligera y estable
 app.use(fileUpload({
     limits: { fileSize: 10 * 1024 * 1024 * 1024 }, // 10GB máximo
     abortOnLimit: false,
-    useTempFiles: false, // 🔴 CAMBIO CLAVE: Ya no usamos archivos temporales, recibe directo
-    // Escribimos directo a la carpeta final sin pasos intermedios
-    createParentPath: true,
+    useTempFiles: true,
+    tempFileDir: TEMP_UPLOAD_FOLDER,
+    safeFileNames: true,
+    preserveExtension: true,
     debug: false
 }));
 
-// ✅ Carga de archivos estáticos
+// Archivos estáticos
 app.use(express.static(path.join(__dirname, 'templates')));
 
 // 📋 Rutas
@@ -111,75 +114,77 @@ app.post('/procesar', async (req, res) => {
     const archivo = req.files.video;
     const titulo = req.body.titulo || "SIN TÍTULO";
 
-    // 🔴 AHORA GUARDAMOS DIRECTO EN SU LUGAR FINAL, SIN PASOS INTERMEDIOS
-    const rutaEntrada = path.join(INPUT_FOLDER, archivo.name);
-    await archivo.mv(rutaEntrada);
-
     PROCESANDO = true;
 
     try {
-        // 🧮 Cálculo de duración
-        const duracion = await new Promise((resolve, reject) => {
+        // Guardar archivo
+        const rutaEntrada = path.join(INPUT_FOLDER, archivo.name);
+        await archivo.mv(rutaEntrada);
+
+        // Calcular duración y cantidad de partes
+        const duracion = await new Promise((resolve) => {
             execFile('ffprobe', [
                 '-v', 'error',
-                '-select_streams', 'v:0',
-                '-show_entries', 'stream=duration',
+                '-show_entries', 'format=duration',
                 '-of', 'default=noprint_wrappers=1:nokey=1',
                 rutaEntrada
             ], (error, stdout) => {
-                if (error) {
-                    console.warn("⚠️ No se pudo leer la duración, se usará valor estimado: 5 horas");
+                if (error || !stdout || isNaN(parseFloat(stdout))) {
+                    console.log("⚠️ No se pudo leer duración, se usará valor de 5 horas");
                     return resolve(18000);
                 }
-                const valorLimpio = stdout.trim().replace(/[^0-9.]/g, '');
-                const duracionCalculada = parseFloat(valorLimpio) || 18000;
-                resolve(duracionCalculada);
+                resolve(parseFloat(stdout.trim()));
             });
         });
 
         const totalPartes = Math.floor(duracion / config.CLIP_DURATION) + 1;
 
+        // Responder al usuario
         res.json({
             status: "ok",
             mensaje: `🚀 PROCESANDO ${totalPartes} PARTES EN MODO LUZ`
         });
 
-        console.log(`🔥 INICIANDO PROCESO: ${titulo} | Duración: ${Math.round(duracion / 60)} minutos | Partes: ${totalPartes}`);
+        console.log(`\n🔥 PROCESO INICIADO`);
+        console.log(`📌 Título: ${titulo}`);
+        console.log(`⏱️ Duración total: ${Math.round(duracion / 60)} minutos`);
+        console.log(`🔢 Cantidad de partes: ${totalPartes}\n`);
+
+        // Ejecutar tareas
         const log = new MallyLogger(titulo, totalPartes);
+        await Promise.all([productor(rutaEntrada, totalPartes, log), consumidor()]);
 
-        await Promise.all([
-            productor(rutaEntrada, totalPartes, log),
-            consumidor()
-        ]);
-
-        // 🧹 Limpieza final
+        // Limpieza
         if (fs.existsSync(rutaEntrada)) fs.unlinkSync(rutaEntrada);
-        
-        // Borramos archivos temporales viejos por si quedaron
-        if (fs.existsSync(TEMP_UPLOAD_FOLDER)) {
-            fs.readdirSync(TEMP_UPLOAD_FOLDER).forEach(archivoTemp => {
-                const rutaArchivoTemp = path.join(TEMP_UPLOAD_FOLDER, archivoTemp);
-                fs.unlinkSync(rutaArchivoTemp);
-            });
-        }
+        fs.readdirSync(TEMP_UPLOAD_FOLDER).forEach(archivoTemp => {
+            const rutaTemp = path.join(TEMP_UPLOAD_FOLDER, archivoTemp);
+            fs.unlinkSync(rutaTemp);
+        });
 
         PROCESANDO = false;
-        console.log("✅ ¡MISIÓN COMPLETADA! Todo enviado correctamente");
+        console.log("\n✅ ¡TODO FINALIZADO CORRECTAMENTE!\n");
 
     } catch (error) {
         PROCESANDO = false;
-        console.error("❌ ERROR:", error);
-        res.json({ status: "error", mensaje: "❌ Ocurrió un error al procesar el vídeo" });
+        console.error("\n❌ ERROR EN EL PROCESO:", error.message);
+        res.json({ status: "error", mensaje: "❌ Ocurrió un error al procesar el archivo" });
 
+        // Liberar archivos en caso de fallo
+        const rutaEntrada = path.join(INPUT_FOLDER, req.files?.video?.name || "");
         if (fs.existsSync(rutaEntrada)) fs.unlinkSync(rutaEntrada);
+        
+        fs.readdirSync(TEMP_UPLOAD_FOLDER).forEach(archivoTemp => {
+            const rutaTemp = path.join(TEMP_UPLOAD_FOLDER, archivoTemp);
+            fs.unlinkSync(rutaTemp);
+        });
     }
 });
 
-// 🚀 Inicio del servidor
-console.log("=".repeat(50));
-console.log("⚡ MALLYCUTS - MODO EXPRESS ACTIVADO ⚡");
-console.log("🌐 Accedé a: http://localhost:5000");
+// 🚀 Iniciar servidor
+console.log("==================================================");
+console.log("⚡ MALLYCUTS - MODO EXPRESS ACTIVADO");
+console.log("🌐 Accedé en tu navegador: http://localhost:5000");
 console.log("⏱️ Cada parte dura:", config.CLIP_DURATION, "segundos");
-console.log("=".repeat(50));
+console.log("==================================================");
 
 app.listen(PORT, '0.0.0.0', () => {});
