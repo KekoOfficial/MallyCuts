@@ -1,36 +1,244 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MallyCuts Express</title>
-    <style>
-        body { background: #000; color: #fff; font-family: Arial; text-align: center; padding-top: 50px; }
-        input, button { display: block; margin: 15px auto; padding: 10px; width: 80%; max-width: 400px; }
-        button { background: #fff; color: #000; font-weight: bold; border: none; cursor: pointer; }
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        // Configuración de colores
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        fondo: '#0F0F13',
+                        tarjeta: '#1A1A22',
+                        acento: '#6D28D9',
+                        acentoClaro: '#8B5CF6',
+                        texto: '#F3F4F6',
+                        textoSecundario: '#9CA3AF',
+                        exito: '#10B981',
+                        error: '#EF4444',
+                        advertencia: '#F59E0B'
+                    },
+                    fontFamily: {
+                        principal: ['"Segoe UI"', 'Roboto', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .contenedor-centrado {
+                min-height: calc(100vh - 4rem);
+            }
+            .sombra-personalizada {
+                box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 15px rgba(109, 40, 217, 0.15);
+            }
+            .borde-gradiente {
+                background: linear-gradient(#1A1A22, #1A1A22) padding-box, linear-gradient(135deg, #6D28D9, #8B5CF6) border-box;
+                border: 2px solid transparent;
+            }
+            .boton-efecto:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 8px 20px rgba(109, 40, 217, 0.3);
+            }
+            .boton-efecto:active {
+                transform: translateY(0);
+            }
+            .animacion-cargando::after {
+                content: '';
+                display: inline-block;
+                width: 14px;
+                height: 14px;
+                border: 2px solid #fff;
+                border-top-color: transparent;
+                border-radius: 50%;
+                margin-left: 10px;
+                animation: girar 1s linear infinite;
+            }
+            @keyframes girar {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            .entrada {
+                animation: entrada 0.5s ease-out forwards;
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            @keyframes entrada {
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        }
     </style>
 </head>
-<body>
+<body class="bg-fondo text-texto font-principal antialiased">
+    <!-- Encabezado -->
+    <header class="w-full py-4 px-6 flex justify-center items-center border-b border-gray-800">
+        <h1 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold bg-gradient-to-r from-acentoClaro to-acento bg-clip-text text-transparent flex items-center gap-3">
+            <i class="fa fa-cut"></i>
+            MALLYCUTS EXPRESS
+        </h1>
+    </header>
 
-    <h1>⚔️ MALLYCUTS EXPRESS ⚔️</h1>
+    <!-- Contenido Principal -->
+    <main class="contenedor-centrado flex flex-col items-center justify-center px-4 py-8">
+        <!-- Tarjeta Principal -->
+        <div class="w-full max-w-md borde-gradiente rounded-2xl p-6 sm:p-8 sombra-personalizada entrada">
+            <div class="text-center mb-8">
+                <p class="text-textoSecundario text-lg">Corta y envía tus vídeos automáticamente a Telegram</p>
+            </div>
 
-    <form id="formulario">
-        <input type="text" name="titulo" placeholder="Título del video" required>
-        <input type="file" name="video" accept="video/*" required>
-        <button type="submit">🚀 LANZAR MODO LUZ</button>
-    </form>
+            <!-- Formulario -->
+            <form id="formulario" class="space-y-5">
+                <!-- Campo Título -->
+                <div class="space-y-2">
+                    <label for="titulo" class="block text-sm font-medium text-textoSecundario">
+                        <i class="fa fa-pencil mr-2"></i> Título del vídeo
+                    </label>
+                    <input 
+                        type="text" 
+                        id="titulo" 
+                        name="titulo" 
+                        placeholder="Ej: Mi serie favorita - Capítulo 1" 
+                        required
+                        class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-700 focus:border-acento outline-none transition-colors duration-200 text-texto placeholder:text-textoSecundario"
+                    >
+                </div>
 
-    <div id="estado"></div>
+                <!-- Campo Archivo -->
+                <div class="space-y-2">
+                    <label for="video" class="block text-sm font-medium text-textoSecundario">
+                        <i class="fa fa-file-video-o mr-2"></i> Seleccionar vídeo
+                    </label>
+                    <div class="relative">
+                        <input 
+                            type="file" 
+                            id="video" 
+                            name="video" 
+                            accept="video/*" 
+                            required
+                            class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-700 focus:border-acento outline-none transition-colors duration-200 text-texto file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-acento file:text-white file:cursor-pointer hover:file:bg-acentoClaro"
+                        >
+                    </div>
+                    <p class="text-xs text-textoSecundario mt-1">Formatos admitidos: MP4, AVI, MOV, MKV y más</p>
+                </div>
 
-<script>
-document.getElementById('formulario').onsubmit = async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    document.getElementById('estado').innerHTML = "⏳ Subiendo...";
-    
-    const res = await fetch('/procesar', { method: 'POST', body: formData });
-    const data = await res.json();
-    document.getElementById('estado').innerHTML = `<strong>${data.mensaje}</strong>`;
-}
-</script>
+                <!-- Botón de Envío -->
+                <button 
+                    type="submit" 
+                    id="botonEnviar"
+                    class="w-full mt-4 py-3.5 px-6 rounded-lg bg-gradient-to-r from-acento to-acentoClaro text-white font-bold text-lg transition-all duration-200 boton-efecto flex items-center justify-center gap-2"
+                >
+                    <i class="fa fa-rocket"></i>
+                    <span>INICIAR PROCESAMIENTO</span>
+                </button>
+            </form>
 
+            <!-- Área de Estado -->
+            <div id="estado" class="mt-8 p-5 rounded-lg bg-gray-800/50 border border-gray-700 hidden">
+                <!-- Aquí se mostrarán los mensajes -->
+            </div>
+        </div>
+
+        <!-- Información Adicional -->
+        <div class="mt-8 text-center text-textoSecundario text-sm entrada" style="animation-delay: 0.2s">
+            <p><i class="fa fa-info-circle mr-1"></i> El sistema cortará el vídeo en segmentos de 60 segundos y los enviará automáticamente</p>
+            <p class="mt-1">Desarrollado para <span class="text-acentoClaro font-medium">@MallyUmbrae</span></p>
+        </div>
+    </main>
+
+    <script>
+        const formulario = document.getElementById('formulario');
+        const estadoDiv = document.getElementById('estado');
+        const botonEnviar = document.getElementById('botonEnviar');
+
+        formulario.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Mostrar estado y cambiar apariencia
+            estadoDiv.classList.remove('hidden');
+            estadoDiv.className = "mt-8 p-5 rounded-lg bg-gray-800/50 border border-blue-500/30 text-blue-400";
+            estadoDiv.innerHTML = `
+                <div class="flex items-center justify-center gap-3">
+                    <i class="fa fa-spinner fa-spin text-xl"></i>
+                    <span class="font-medium">📤 Subiendo archivo... Por favor espera</span>
+                </div>
+            `;
+
+            // Desactivar botón para evitar duplicados
+            botonEnviar.disabled = true;
+            botonEnviar.innerHTML = `<i class="fa fa-clock-o"></i> <span>PROCESANDO...</span>`;
+            botonEnviar.classList.add('opacity-70', 'cursor-not-allowed');
+
+            try {
+                // Preparar datos y enviar
+                const datosFormulario = new FormData(formulario);
+                const respuesta = await fetch('/procesar', {
+                    method: 'POST',
+                    body: datosFormulario
+                });
+
+                const resultado = await respuesta.json();
+
+                // Procesar respuesta
+                if (resultado.status === "ok") {
+                    estadoDiv.className = "mt-8 p-5 rounded-lg bg-green-900/20 border border-exito/30 text-exito";
+                    estadoDiv.innerHTML = `
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2">
+                                <i class="fa fa-check-circle text-xl"></i>
+                                <span class="font-bold text-lg">¡Proceso iniciado correctamente!</span>
+                            </div>
+                            <p>${resultado.mensaje}</p>
+                            <p class="text-sm opacity-80 mt-2">El sistema está trabajando en segundo plano, recibirás los archivos en tu canal de Telegram en breve.</p>
+                        </div>
+                    `;
+                } 
+                else if (resultado.status === "ocupado") {
+                    estadoDiv.className = "mt-8 p-5 rounded-lg bg-yellow-900/20 border border-advertencia/30 text-advertencia";
+                    estadoDiv.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <i class="fa fa-exclamation-triangle text-xl"></i>
+                            <span class="font-medium">${resultado.mensaje}</span>
+                        </div>
+                    `;
+                } 
+                else {
+                    estadoDiv.className = "mt-8 p-5 rounded-lg bg-red-900/20 border border-error/30 text-error";
+                    estadoDiv.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <i class="fa fa-times-circle text-xl"></i>
+                            <span class="font-medium">${resultado.mensaje || "Ocurrió un error inesperado"}</span>
+                        </div>
+                    `;
+                }
+
+            } catch (error) {
+                estadoDiv.className = "mt-8 p-5 rounded-lg bg-red-900/20 border border-error/30 text-error";
+                estadoDiv.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <i class="fa fa-times-circle text-xl"></i>
+                        <span class="font-medium">❌ No se pudo conectar al servidor. Revisa tu conexión o el estado del sistema.</span>
+                    </div>
+                `;
+                console.error("Error de conexión:", error);
+            } 
+            finally {
+                // Restaurar botón
+                botonEnviar.disabled = false;
+                botonEnviar.innerHTML = `<i class="fa fa-rocket"></i> <span>INICIAR PROCESAMIENTO</span>`;
+                botonEnviar.classList.remove('opacity-70', 'cursor-not-allowed');
+                
+                // Limpiar campos
+                formulario.reset();
+            }
+        });
+    </script>
 </body>
 </html>
