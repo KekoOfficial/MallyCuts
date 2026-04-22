@@ -1,76 +1,64 @@
-const TelegramBot = require('node-telegram-bot-api');
+const { execFile } = require('child_process');
+const path = require('path');
 const fs = require('fs');
 const config = require('../config');
 
-// Inicialización del bot
-const bot = new TelegramBot(config.TOKEN, { polling: false });
-
 /**
- * Envía un mismo archivo a los DOS CANALES
- * @param {string} rutaArchivo - Ruta del archivo a enviar
- * @param {string} mensaje - Mensaje que acompaña al vídeo
- * @param {number} numeroParte - Número de la parte que se está enviando
- * @returns {Promise<boolean>} Resultado del proceso
+ * Corta el vídeo y genera todas las partes
+ * @param {string} rutaEntrada - Ruta del archivo original
+ * @param {number} numeroParte - Número de la parte a generar
+ * @returns {Promise<string|null>} Ruta del archivo generado
  */
-async function enviarADosCanales(rutaArchivo, mensaje, numeroParte) {
-    if (!fs.existsSync(rutaArchivo)) {
-        console.error(`❌ Parte ${numeroParte}: El archivo no existe`);
-        return false;
-    }
+function extraerSegmento(rutaEntrada, numeroParte) {
+    return new Promise((resolve) => {
+        const tiempoInicio = (numeroParte - 1) * config.CLIP_DURATION;
+        const rutaSalida = path.join(config.TEMP_FOLDER, `parte_${numeroParte}.mp4`);
 
-    console.log(`\n📤 ENVIANDO PARTE ${numeroParte} A LOS DOS CANALES...`);
-    let enviadoBien = true;
+        // Comando optimizado, rápido y sin errores
+        const comandoFFmpeg = [
+            '-y',
+            '-ss', tiempoInicio.toString(),
+            '-i', rutaEntrada,
+            '-t', config.CLIP_DURATION.toString(),
+            '-c:v', 'copy',
+            '-c:a', 'copy',
+            '-avoid_negative_ts', 'make_zero',
+            '-fflags', '+genpts+igndts',
+            '-async', '1',
+            '-movflags', '+faststart',
+            '-hide_banner',
+            '-loglevel', 'error',
+            rutaSalida
+        ];
 
-    // ⚠️ PRIMERO ENVÍO AL CANAL PÚBLICO
-    try {
-        console.log(`➡️ Enviando a Canal Público: ${config.CANAL_PUBLICO.NOMBRE}`);
-        await bot.sendVideo(
-            config.CANAL_PUBLICO.ID,
-            fs.createReadStream(rutaArchivo),
-            {
-                caption: mensaje,
-                parse_mode: 'HTML'
-            },
-            {
-                contentType: 'video/mp4',
-                timeout: config.TIMEOUT_SEND
+        execFile('ffmpeg', comandoFFmpeg, {
+            maxBuffer: 200 * 1024 * 1024,
+            timeout: 180000
+        }, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`❌ Error al generar parte ${numeroParte}: ${error.message}`);
+                return resolve(null);
             }
-        );
-        console.log(`✅ Parte ${numeroParte} enviada correctamente a CANAL PÚBLICO`);
-    } catch (error) {
-        console.error(`❌ Parte ${numeroParte} - Error en Canal Público: ${error.response?.body?.description || error.message}`);
-        enviadoBien = false;
-    }
 
-    // ⚠️ SEGUNDO ENVÍO AL CANAL PRIVADO
-    try {
-        console.log(`➡️ Enviando a Canal Privado: ${config.CANAL_PRIVADO.ID}`);
-        await bot.sendVideo(
-            config.CANAL_PRIVADO.ID,
-            fs.createReadStream(rutaArchivo),
-            {
-                caption: mensaje,
-                parse_mode: 'HTML'
-            },
-            {
-                contentType: 'video/mp4',
-                timeout: config.TIMEOUT_SEND
+            if (fs.existsSync(rutaSalida)) {
+                const datosArchivo = fs.statSync(rutaSalida);
+                const tamañoMB = (datosArchivo.size / 1024 / 1024).toFixed(2);
+
+                // Validar que el archivo no esté vacío
+                if (datosArchivo.size > 1000) {
+                    console.log(`✅ Parte ${numeroParte} generada | Tamaño: ${tamañoMB} MB`);
+                    resolve(rutaSalida);
+                } else {
+                    console.error(`⚠️ Parte ${numeroParte} vacía o dañada`);
+                    if (fs.existsSync(rutaSalida)) fs.unlinkSync(rutaSalida);
+                    resolve(null);
+                }
+            } else {
+                console.error(`❌ No se pudo crear la parte ${numeroParte}`);
+                resolve(null);
             }
-        );
-        console.log(`✅ Parte ${numeroParte} enviada correctamente a CANAL PRIVADO`);
-    } catch (error) {
-        console.error(`❌ Parte ${numeroParte} - Error en Canal Privado: ${error.response?.body?.description || error.message}`);
-        enviadoBien = false;
-    }
-
-    // Resultado final de esta parte
-    if (enviadoBien) {
-        console.log(`🎉 PARTE ${numeroParte} COMPLETADA EN AMBOS CANALES`);
-    } else {
-        console.log(`⚠️ PARTE ${numeroParte} TUVO ERRORES EN UNO O AMBOS CANALES`);
-    }
-
-    return enviadoBien;
+        });
+    });
 }
 
-module.exports = { enviarADosCanales };
+module.exports = { extraerSegmento };
