@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MallyCuts Express</title>
-    <link rel="stylesheet" href="index.css">
+    <!-- Referencia al archivo de estilos -->
+    <link rel="stylesheet" href="/index.css">
+    <!-- Iconos -->
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
 </head>
 <body>
@@ -95,13 +97,13 @@
                 </div>
             `;
 
-            // Desactivar botón
+            // Desactivar botón para evitar envíos duplicados
             botonEnviar.disabled = true;
             botonEnviar.innerHTML = `<i class="fa fa-clock-o"></i> <span>PROCESANDO...</span>`;
             botonEnviar.classList.add('boton-deshabilitado');
 
             try {
-                // Enviar datos al servidor
+                // Preparar datos y enviar al servidor
                 const datosFormulario = new FormData(formulario);
                 const respuesta = await fetch('/procesar', {
                     method: 'POST',
@@ -110,7 +112,7 @@
 
                 const resultado = await respuesta.json();
 
-                // Mostrar resultado
+                // Mostrar el resultado según la respuesta
                 if (resultado.status === "ok") {
                     estadoDiv.classList.remove('estado-cargando');
                     estadoDiv.classList.add('estado-exito');
