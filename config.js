@@ -1,22 +1,16 @@
-// 🤖 BOT DE TELEGRAM
+// 🤖 CONFIGURACIÓN DEL BOT
 module.exports = {
+    // Poné acá TU TOKEN del bot
     TOKEN: "8459092113:AAFFJ0b7H5gFzYjgYGk_g_57cI709dhVRhI",
 
-    // 📢 CONFIGURACIÓN DE CANALES
-    CANAL_MIO: {
-        ID: "-1003983527231",       // Tu canal, solo se muestra en el mensaje
-        NOMBRE: "@MallyUmbrae"      // Nombre que aparece
-    },
-    CANAL_PRIVADO: {
-        ID: "-1003706372741"        // Canal privado, AQUÍ SE GUARDA EL ARCHIVO
-    },
+    // Poné acá EL ÚNICO ID DE CANAL donde querés que se envíe todo
+    CANAL_ID: "-1003983527231",
 
-    // ⚙️ AJUSTES GENERALES
-    CLIP_DURATION: 60,        // Duración de cada parte
-    MAX_RETRIES: 3,           // Intentos si falla
-    TIMEOUT_SEND: 300000,     // Tiempo de espera
-    TAMANIO_MAXIMO: 50 * 1024 * 1024,
+    // ⚙️ Ajustes básicos
+    CLIP_DURATION: 60,        // Duración de cada parte en segundos
+    MAX_RETRIES: 3,           // Intentos si falla el envío
+    TIMEOUT_SEND: 300000,     // Tiempo máximo de espera al enviar
 
-    // 📂 Rutas
+    // 📂 Carpetas
     TEMP_FOLDER: require('path').join(__dirname, 'videos', 'output')
 };
