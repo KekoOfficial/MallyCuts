@@ -2,53 +2,75 @@ const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
 const config = require('../config');
 
+// Inicialización del bot
 const bot = new TelegramBot(config.TOKEN, { polling: false });
 
-async function despacharATelegram(rutaArchivo, mensaje) {
+/**
+ * Envía un mismo archivo a los DOS CANALES
+ * @param {string} rutaArchivo - Ruta del archivo a enviar
+ * @param {string} mensaje - Mensaje que acompaña al vídeo
+ * @param {number} numeroParte - Número de la parte que se está enviando
+ * @returns {Promise<boolean>} Resultado del proceso
+ */
+async function enviarADosCanales(rutaArchivo, mensaje, numeroParte) {
     if (!fs.existsSync(rutaArchivo)) {
-        console.error("❌ El archivo no existe");
+        console.error(`❌ Parte ${numeroParte}: El archivo no existe`);
         return false;
     }
 
-    console.log(`📤 Enviando contenido AL CANAL PRIVADO...`);
-    let enviadoCorrectamente = false;
+    console.log(`\n📤 ENVIANDO PARTE ${numeroParte} A LOS DOS CANALES...`);
+    let enviadoBien = true;
 
-    for (let intento = 1; intento <= config.MAX_RETRIES; intento++) {
-        try {
-            // ✅ Se envía SOLO al canal privado, pero el mensaje muestra tu canal público
-            await bot.sendVideo(
-                config.CANAL_PRIVADO.ID,
-                fs.createReadStream(rutaArchivo),
-                {
-                    caption: mensaje,
-                    parse_mode: 'HTML'
-                },
-                {
-                    contentType: 'video/mp4',
-                    timeout: config.TIMEOUT_SEND
-                }
-            );
-
-            console.log(`✅ ¡ENVIADO CORRECTAMENTE! Guardado en canal privado, mensaje muestra: ${config.CANAL_MIO.NOMBRE}`);
-            enviadoCorrectamente = true;
-            break;
-
-        } catch (error) {
-            console.log(`⚠️ Intento ${intento}/${config.MAX_RETRIES} fallido`);
-            
-            if (error.response?.body?.description === "Bad Request: chat not found") {
-                console.error("❌ No se encuentra el canal. Verificá que el bot sea administrador.");
-                break;
-            } else {
-                console.error(`ℹ️ Motivo: ${error.response?.body?.description || error.message}`);
-                if (intento < config.MAX_RETRIES) {
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                }
+    // ⚠️ PRIMERO ENVÍO AL CANAL PÚBLICO
+    try {
+        console.log(`➡️ Enviando a Canal Público: ${config.CANAL_PUBLICO.NOMBRE}`);
+        await bot.sendVideo(
+            config.CANAL_PUBLICO.ID,
+            fs.createReadStream(rutaArchivo),
+            {
+                caption: mensaje,
+                parse_mode: 'HTML'
+            },
+            {
+                contentType: 'video/mp4',
+                timeout: config.TIMEOUT_SEND
             }
-        }
+        );
+        console.log(`✅ Parte ${numeroParte} enviada correctamente a CANAL PÚBLICO`);
+    } catch (error) {
+        console.error(`❌ Parte ${numeroParte} - Error en Canal Público: ${error.response?.body?.description || error.message}`);
+        enviadoBien = false;
     }
 
-    return enviadoCorrectamente;
+    // ⚠️ SEGUNDO ENVÍO AL CANAL PRIVADO
+    try {
+        console.log(`➡️ Enviando a Canal Privado: ${config.CANAL_PRIVADO.ID}`);
+        await bot.sendVideo(
+            config.CANAL_PRIVADO.ID,
+            fs.createReadStream(rutaArchivo),
+            {
+                caption: mensaje,
+                parse_mode: 'HTML'
+            },
+            {
+                contentType: 'video/mp4',
+                timeout: config.TIMEOUT_SEND
+            }
+        );
+        console.log(`✅ Parte ${numeroParte} enviada correctamente a CANAL PRIVADO`);
+    } catch (error) {
+        console.error(`❌ Parte ${numeroParte} - Error en Canal Privado: ${error.response?.body?.description || error.message}`);
+        enviadoBien = false;
+    }
+
+    // Resultado final de esta parte
+    if (enviadoBien) {
+        console.log(`🎉 PARTE ${numeroParte} COMPLETADA EN AMBOS CANALES`);
+    } else {
+        console.log(`⚠️ PARTE ${numeroParte} TUVO ERRORES EN UNO O AMBOS CANALES`);
+    }
+
+    return enviadoBien;
 }
 
-module.exports = { despacharATelegram };
+module.exports = { enviarADosCanales };
