@@ -19,7 +19,7 @@ fs.mkdirSync(TEMP_UPLOAD_FOLDER, { recursive: true });
 
 // ⚙️ Variables de control
 let PROCESANDO = false;
-const listaDePartes = []; // Aquí se guardan todas las partes después de cortar
+const listaDePartes = []; // Aquí se guardan todas las partes generadas
 
 // 🎨 Generador de mensajes personalizados
 class GeneradorMensajes {
@@ -43,7 +43,7 @@ async function cortarTodoElVideo(rutaVideo, totalPartes) {
     console.log("🔪 INICIANDO CORTE DE TODO EL CONTENIDO...");
     console.log("=".repeat(60));
 
-    // Limpiamos la lista por si había datos anteriores
+    // Limpiamos la lista por si había datos de procesos anteriores
     listaDePartes.length = 0;
 
     for (let numeroParte = 1; numeroParte <= totalPartes; numeroParte++) {
@@ -55,7 +55,7 @@ async function cortarTodoElVideo(rutaVideo, totalPartes) {
                 numero: numeroParte,
                 ruta: rutaParte
             });
-            console.log(`✅ Parte ${numeroParte} guardada en la lista para enviar`);
+            console.log(`✅ Parte ${numeroParte} generada y guardada para envío`);
         } else {
             console.log(`⚠️ Parte ${numeroParte} no se pudo generar, se omitirá`);
         }
@@ -72,23 +72,23 @@ async function enviarTodasLasPartes(generadorMensajes) {
     console.log("📤 INICIANDO ENVÍO DE PARTES A LOS DOS CANALES...");
     console.log("=".repeat(60));
 
-    // Recorremos la lista de partes UNA POR UNA, ordenadamente
+    // Recorremos la lista de partes UNA POR UNA, en orden
     for (const parte of listaDePartes) {
         const mensaje = generadorMensajes.obtenerMensajeParte(parte.numero);
         
         console.log(`\n🔄 PROCESANDO ENVÍO DE LA PARTE ${parte.numero}...`);
         
-        // Enviamos esta parte a los dos canales al mismo tiempo
+        // Enviamos esta parte a los dos canales
         const resultado = await enviar.enviarADosCanales(parte.ruta, mensaje, parte.numero);
 
-        // Eliminamos el archivo temporal después de enviarlo, no importa si salió bien o mal
+        // Eliminamos el archivo temporal después de enviarlo
         if (fs.existsSync(parte.ruta)) {
             fs.unlinkSync(parte.ruta);
             console.log(`🗑️ Archivo temporal de la parte ${parte.numero} eliminado`);
         }
 
-        // Pequeña pausa entre partes para que Telegram no bloquee los mensajes y todo se sincronice bien
-        console.log(`⏳ Esperando 1,5 segundos antes de enviar la siguiente parte...`);
+        // Pausa entre partes para evitar que Telegram bloquee los mensajes
+        console.log(`⏳ Esperando 1.5 segundos antes de enviar la siguiente parte...`);
         await new Promise(resolve => setTimeout(resolve, 1500));
     }
 
@@ -104,7 +104,7 @@ app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Configuración de subida de archivos
 app.use(fileUpload({
-    limits: { fileSize: 10 * 1024 * 1024 * 1024 }, // 10GB máximo por archivo
+    limits: { fileSize: 10 * 1024 * 1024 * 1024 }, // Máximo 10GB por archivo
     abortOnLimit: false,
     useTempFiles: true,
     tempFileDir: TEMP_UPLOAD_FOLDER,
@@ -178,15 +178,15 @@ app.post('/procesar', async (req, res) => {
         console.log(`⏱️ Duración total: ${Math.round(duracionSegundos)} segundos`);
         console.log(`🔢 Duración por parte: ${config.CLIP_DURATION} segundos`);
         console.log(`🔢 Cantidad total de partes: ${cantidadPartes}`);
-        console.log(`📢 Canal Público: ${config.CANAL_PUBLICO.NOMBRE} (ID: ${config.CANAL_PUBLICO.ID})`);
-        console.log(`🔒 Canal Privado: Solo vos (ID: ${config.CANAL_PRIVADO.ID})`);
+        console.log(`📢 Canal Público: ${config.CANAL_PUBLICO.NOMBRE} | ID: ${config.CANAL_PUBLICO.ID}`);
+        console.log(`🔒 Canal Privado: Solo vos | ID: ${config.CANAL_PRIVADO.ID}`);
         console.log("=".repeat(60) + "\n");
 
         // 🚀 EJECUTAMOS TODO EN EL ORDEN QUE QUERÍAS:
         // PASO 1: Cortar todo el vídeo primero
         await cortarTodoElVideo(rutaArchivoOriginal, cantidadPartes);
 
-        // PASO 2: Preparar los mensajes que van a acompañar cada vídeo
+        // PASO 2: Preparar los mensajes para cada parte
         const generadorMensajes = new GeneradorMensajes(nombreContenido, listaDePartes.length);
 
         // PASO 3: Enviar parte por parte a los dos canales
@@ -208,7 +208,7 @@ app.post('/procesar', async (req, res) => {
             mensaje: "❌ Ocurrió un error al procesar el contenido: " + error.message 
         });
 
-        // 🧹 Limpiamos todo si hubo error
+        // 🧹 Limpiamos todos los archivos si hubo un error
         const rutaArchivoOriginal = path.join(INPUT_FOLDER, req.files?.video?.name || "");
         if (fs.existsSync(rutaArchivoOriginal)) fs.unlinkSync(rutaArchivoOriginal);
         
@@ -233,5 +233,5 @@ console.log("📢 Canal Público: " + config.CANAL_PUBLICO.NOMBRE);
 console.log("🔒 Canal Privado: Solo vos");
 console.log("==================================================");
 
-// Línea corregida y completa
+// Línea completa y correcta
 app.listen(PORT, '0.0.0.0', () => {});
