@@ -12,11 +12,10 @@ const PORT = 5000;
 
 // 📂 Carpetas de trabajo
 const INPUT_FOLDER = path.join(__dirname, 'videos', 'input');
-// Carpeta temporal dentro de tu proyecto (ahora sí tenemos permisos)
 const TEMP_UPLOAD_FOLDER = path.join(__dirname, 'temp_uploads');
 fs.mkdirSync(INPUT_FOLDER, { recursive: true });
 fs.mkdirSync(config.TEMP_FOLDER, { recursive: true });
-fs.mkdirSync(TEMP_UPLOAD_FOLDER, { recursive: true }); // Creamos la carpeta si no existe
+fs.mkdirSync(TEMP_UPLOAD_FOLDER, { recursive: true });
 
 // ⚙️ Variables de control
 let PROCESANDO = false;
@@ -39,12 +38,9 @@ function productor(rutaVideo, totalPartes, log) {
     return new Promise(async (resolve) => {
         for (let n = 1; n <= totalPartes; n++) {
             console.log(`⚡ CORTANDO PARTE ${n}/${totalPartes}`);
-            
-            // Llamamos a la función que corta el vídeo
             const rutaArchivo = await cortar.extraerSegmento(rutaVideo, n);
             
             if (fs.existsSync(rutaArchivo)) {
-                // Agregamos a la cola para que se envíe
                 cola.push({
                     n: n,
                     path: rutaArchivo,
@@ -52,7 +48,6 @@ function productor(rutaVideo, totalPartes, log) {
                 });
             }
         }
-        // Marcamos que terminó de agregar todos los elementos
         cola.push(null);
         resolve();
     });
@@ -62,7 +57,6 @@ function productor(rutaVideo, totalPartes, log) {
 function consumidor() {
     return new Promise(async (resolve) => {
         while (true) {
-            // Esperamos hasta que haya archivos en la cola
             while (cola.length === 0) {
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
@@ -71,14 +65,12 @@ function consumidor() {
             if (item === null) break;
 
             console.log(`📤 ENVIANDO PARTE ${item.n}`);
-            
             const enviado = await enviar.despacharATelegram(item.path, item.caption);
             
             if (enviado) {
                 console.log(`✅ PARTE ${item.n} ENVIADA CORRECTAMENTE`);
             }
 
-            // Eliminamos el archivo temporal después de enviarlo
             if (fs.existsSync(item.path)) {
                 fs.unlinkSync(item.path);
             }
@@ -87,21 +79,22 @@ function consumidor() {
     });
 }
 
-// 🛠️ Configuración de Express
+// 🛠️ CONFIGURACIÓN DE SUBIDA MEJORADA Y MÁS RÁPIDA
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload({
-    limits: { fileSize: 1024 * 1024 * 1024 * 10 }, // 10GB de límite
+    limits: { fileSize: 10 * 1024 * 1024 * 1024 }, // 10GB máximo
     abortOnLimit: false,
-    useTempFiles: true,
-    // 🔴 CAMBIO IMPORTANTE: Ahora usamos nuestra carpeta propia, no la del sistema
-    tempFileDir: TEMP_UPLOAD_FOLDER
+    useTempFiles: false, // 🔴 CAMBIO CLAVE: Ya no usamos archivos temporales, recibe directo
+    // Escribimos directo a la carpeta final sin pasos intermedios
+    createParentPath: true,
+    debug: false
 }));
 
-// ✅ Permite cargar archivos estáticos de la carpeta templates
+// ✅ Carga de archivos estáticos
 app.use(express.static(path.join(__dirname, 'templates')));
 
-// 📋 Rutas del sistema
+// 📋 Rutas
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'templates', 'index.html'));
 });
@@ -118,14 +111,14 @@ app.post('/procesar', async (req, res) => {
     const archivo = req.files.video;
     const titulo = req.body.titulo || "SIN TÍTULO";
 
-    // Guardamos el archivo subido en la carpeta de entrada
+    // 🔴 AHORA GUARDAMOS DIRECTO EN SU LUGAR FINAL, SIN PASOS INTERMEDIOS
     const rutaEntrada = path.join(INPUT_FOLDER, archivo.name);
     await archivo.mv(rutaEntrada);
 
     PROCESANDO = true;
 
     try {
-        // 🧮 Calculamos la duración total del vídeo
+        // 🧮 Cálculo de duración
         const duracion = await new Promise((resolve, reject) => {
             execFile('ffprobe', [
                 '-v', 'error',
@@ -136,7 +129,7 @@ app.post('/procesar', async (req, res) => {
             ], (error, stdout) => {
                 if (error) {
                     console.warn("⚠️ No se pudo leer la duración, se usará valor estimado: 5 horas");
-                    return resolve(18000); // 5 horas por defecto
+                    return resolve(18000);
                 }
                 const valorLimpio = stdout.trim().replace(/[^0-9.]/g, '');
                 const duracionCalculada = parseFloat(valorLimpio) || 18000;
@@ -144,10 +137,8 @@ app.post('/procesar', async (req, res) => {
             });
         });
 
-        // Calculamos cantidad de partes
         const totalPartes = Math.floor(duracion / config.CLIP_DURATION) + 1;
 
-        // Enviamos respuesta al usuario
         res.json({
             status: "ok",
             mensaje: `🚀 PROCESANDO ${totalPartes} PARTES EN MODO LUZ`
@@ -156,19 +147,21 @@ app.post('/procesar', async (req, res) => {
         console.log(`🔥 INICIANDO PROCESO: ${titulo} | Duración: ${Math.round(duracion / 60)} minutos | Partes: ${totalPartes}`);
         const log = new MallyLogger(titulo, totalPartes);
 
-        // Iniciamos procesos en paralelo
         await Promise.all([
             productor(rutaEntrada, totalPartes, log),
             consumidor()
         ]);
 
-        // 🧹 Limpieza de archivos
+        // 🧹 Limpieza final
         if (fs.existsSync(rutaEntrada)) fs.unlinkSync(rutaEntrada);
-        // Borramos también los archivos temporales de la carpeta propia
-        fs.readdirSync(TEMP_UPLOAD_FOLDER).forEach(archivoTemp => {
-            const rutaArchivoTemp = path.join(TEMP_UPLOAD_FOLDER, archivoTemp);
-            fs.unlinkSync(rutaArchivoTemp);
-        });
+        
+        // Borramos archivos temporales viejos por si quedaron
+        if (fs.existsSync(TEMP_UPLOAD_FOLDER)) {
+            fs.readdirSync(TEMP_UPLOAD_FOLDER).forEach(archivoTemp => {
+                const rutaArchivoTemp = path.join(TEMP_UPLOAD_FOLDER, archivoTemp);
+                fs.unlinkSync(rutaArchivoTemp);
+            });
+        }
 
         PROCESANDO = false;
         console.log("✅ ¡MISIÓN COMPLETADA! Todo enviado correctamente");
@@ -178,16 +171,11 @@ app.post('/procesar', async (req, res) => {
         console.error("❌ ERROR:", error);
         res.json({ status: "error", mensaje: "❌ Ocurrió un error al procesar el vídeo" });
 
-        // Liberamos archivos en caso de error
         if (fs.existsSync(rutaEntrada)) fs.unlinkSync(rutaEntrada);
-        fs.readdirSync(TEMP_UPLOAD_FOLDER).forEach(archivoTemp => {
-            const rutaArchivoTemp = path.join(TEMP_UPLOAD_FOLDER, archivoTemp);
-            fs.unlinkSync(rutaArchivoTemp);
-        });
     }
 });
 
-// 🚀 Iniciamos el servidor
+// 🚀 Inicio del servidor
 console.log("=".repeat(50));
 console.log("⚡ MALLYCUTS - MODO EXPRESS ACTIVADO ⚡");
 console.log("🌐 Accedé a: http://localhost:5000");
