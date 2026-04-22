@@ -8,7 +8,6 @@ function extraerSegmento(rutaEntrada, numeroParte) {
         const tiempoInicio = (numeroParte - 1) * config.CLIP_DURATION;
         const rutaSalida = path.join(config.TEMP_FOLDER, `parte_${numeroParte}.mp4`);
 
-        // Comando simple y seguro sin errores
         const comandoFFmpeg = [
             '-y',
             '-ss', tiempoInicio.toString(),
@@ -36,8 +35,9 @@ function extraerSegmento(rutaEntrada, numeroParte) {
 
             if (fs.existsSync(rutaSalida)) {
                 const datosArchivo = fs.statSync(rutaSalida);
+                const tamañoMB = (datosArchivo.size / 1024 / 1024).toFixed(2);
+
                 if (datosArchivo.size > 1000) {
-                    const tamañoMB = (datosArchivo.size / 1024 / 1024).toFixed(2);
                     console.log(`✅ Parte ${numeroParte} lista | Tamaño: ${tamañoMB} MB`);
                     resolve(rutaSalida);
                 } else {
