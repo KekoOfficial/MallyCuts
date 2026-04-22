@@ -2,7 +2,6 @@ const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
 const config = require('../config');
 
-// Inicialización simple
 const bot = new TelegramBot(config.TOKEN, { polling: false });
 
 async function despacharATelegram(rutaArchivo, mensaje) {
@@ -11,15 +10,14 @@ async function despacharATelegram(rutaArchivo, mensaje) {
         return false;
     }
 
-    console.log(`📤 Enviando contenido al canal...`);
-    let enviado = false;
+    console.log(`📤 Enviando contenido AL CANAL PRIVADO...`);
+    let enviadoCorrectamente = false;
 
-    // Intentos de envío
     for (let intento = 1; intento <= config.MAX_RETRIES; intento++) {
         try {
-            // Método correcto y probado
+            // ✅ Se envía SOLO al canal privado, pero el mensaje muestra tu canal público
             await bot.sendVideo(
-                config.CANAL_ID,
+                config.CANAL_PRIVADO.ID,
                 fs.createReadStream(rutaArchivo),
                 {
                     caption: mensaje,
@@ -31,17 +29,15 @@ async function despacharATelegram(rutaArchivo, mensaje) {
                 }
             );
 
-            console.log(`✅ ¡ENVIADO CORRECTAMENTE!`);
-            enviado = true;
+            console.log(`✅ ¡ENVIADO CORRECTAMENTE! Guardado en canal privado, mensaje muestra: ${config.CANAL_MIO.NOMBRE}`);
+            enviadoCorrectamente = true;
             break;
 
         } catch (error) {
             console.log(`⚠️ Intento ${intento}/${config.MAX_RETRIES} fallido`);
             
             if (error.response?.body?.description === "Bad Request: chat not found") {
-                console.error("❌ No se encuentra el canal. Verificá:");
-                console.error("   - Que el ID sea correcto");
-                console.error("   - Que el bot sea administrador del canal");
+                console.error("❌ No se encuentra el canal. Verificá que el bot sea administrador.");
                 break;
             } else {
                 console.error(`ℹ️ Motivo: ${error.response?.body?.description || error.message}`);
@@ -52,7 +48,7 @@ async function despacharATelegram(rutaArchivo, mensaje) {
         }
     }
 
-    return enviado;
+    return enviadoCorrectamente;
 }
 
 module.exports = { despacharATelegram };
