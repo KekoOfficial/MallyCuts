@@ -1,44 +1,49 @@
-// enviar2.js
-const FormData = require('form-data'); // Instala esto: npm install form-data
+const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
-const axios = require('axios'); // Instala esto: npm install axios
+const config = require('../config');
 
-// Función para enviar una parte por separado
-async function enviarParte(rutaArchivo, nombreParte) {
-    const intentosMaximos = 3;
+const bot = new TelegramBot(config.TOKEN, { 
+    polling: false,
+    filepath: false
+});
 
-    for (let intento = 1; intento <= intentosMaximos; intento++) {
+// Función de envío separada
+async function enviarSegundoContenido(rutaArchivo, mensaje) {
+    if (!fs.existsSync(rutaArchivo)) {
+        console.error("❌ El archivo no existe para enviar por el segundo método");
+        return false;
+    }
+
+    console.log(`📤 Enviando por el segundo método...`);
+    let enviado = false;
+
+    for (let intento = 1; intento <= config.MAX_RETRIES; intento++) {
         try {
-            console.log(`📤 Enviando ${nombreParte} al canal privado...`);
+            await bot.sendVideo(
+                config.CANAL_PRIVADO.ID,
+                fs.createReadStream(rutaArchivo),
+                {
+                    caption: mensaje + " (Enviado por método 2)",
+                    parse_mode: 'HTML'
+                },
+                {
+                    contentType: 'video/mp4',
+                    timeout: config.TIMEOUT_SEND
+                }
+            );
 
-            // Creamos el cuerpo de la solicitud y AGREGAMOS EL ARCHIVO CORRECTAMENTE
-            const datosEnvio = new FormData();
-            datosEnvio.append('video', fs.createReadStream(rutaArchivo)); // ¡ESTO ES LO QUE FALTABA!
-            datosEnvio.append('descripcion', `${nombreParte} del archivo`);
-            // Agrega aquí cualquier otro dato que necesites enviar
-
-            // Hacemos la solicitud
-            await axios.post('URL_DE_TU_API_O_SERVICIO', datosEnvio, {
-                headers: datosEnvio.getHeaders()
-            });
-
-            console.log(`✅ ${nombreParte} enviada correctamente en el intento ${intento}`);
-            return; // Salimos si se envió bien
+            console.log(`✅ Enviado correctamente por el segundo método`);
+            enviado = true;
+            break;
 
         } catch (error) {
-            console.log(`⚠️ Intento ${intento}/${intentosMaximos} fallido`);
-            console.log(`ℹ️ Motivo: ${error.response?.data?.message || error.message}`);
-
-            // Si ya son todos los intentos, lanzamos el error
-            if (intento === intentosMaximos) {
-                throw new Error(`No se pudo enviar ${nombreParte} después de ${intentosMaximos} intentos`);
-            }
-
-            // Esperamos un poco antes de volver a intentar
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            console.log(`⚠️ Intento ${intento}/${config.MAX_RETRIES} fallido en método 2`);
+            console.error(`ℹ️ Motivo: ${error.response?.body?.description || error.message}`);
+            if (intento < config.MAX_RETRIES) await new Promise(resolve => setTimeout(resolve, 2000));
         }
     }
+
+    return enviado;
 }
 
-// Exportamos la función para usarla en otros archivos
-module.exports = { enviarParte };
+module.exports = { enviarSegundoContenido };
