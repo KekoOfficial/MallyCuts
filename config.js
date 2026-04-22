@@ -4,19 +4,19 @@ module.exports = {
 
     // 📢 CONFIGURACIÓN DE CANALES
     CANAL_MIO: {
-        ID: "-1003983527231",       // Tu canal: solo se muestra en el mensaje
-        NOMBRE: "@MallyUmbrae"      // Nombre o enlace que aparecerá en los mensajes
+        ID: "-1003983527231",       // Tu canal, solo se muestra en el mensaje
+        NOMBRE: "@MallyUmbrae"      // Nombre que aparece
     },
     CANAL_PRIVADO: {
-        ID: "-1003706372741"        // Canal privado: AQUÍ SE GUARDAN LOS ARCHIVOS
+        ID: "-1003706372741"        // Canal privado, AQUÍ SE GUARDA EL ARCHIVO
     },
 
     // ⚙️ AJUSTES GENERALES
-    CLIP_DURATION: 60,        // Duración de cada parte en segundos
-    MAX_RETRIES: 3,           // Cantidad de intentos si falla
-    TIMEOUT_SEND: 300000,     // Tiempo máximo de espera al enviar (5 minutos)
-    TAMANIO_MAXIMO: 50 * 1024 * 1024, // 50MB límite por archivo (límite de Telegram)
+    CLIP_DURATION: 60,        // Duración de cada parte
+    MAX_RETRIES: 3,           // Intentos si falla
+    TIMEOUT_SEND: 300000,     // Tiempo de espera
+    TAMANIO_MAXIMO: 50 * 1024 * 1024,
 
-    // 📂 Rutas de carpetas
+    // 📂 Rutas
     TEMP_FOLDER: require('path').join(__dirname, 'videos', 'output')
 };
