@@ -1,8 +1,8 @@
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
-const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
+const fs = require('fs');
+const fileUpload = require('express-fileupload');
 const cortar = require('./core/cortar');
 const enviar = require('./core/enviar');
 const config = require('./config');
@@ -10,16 +10,16 @@ const config = require('./config');
 const app = express();
 const PORT = 5000;
 
-// Carpetas
+// 📂 Carpetas de trabajo
 const INPUT_FOLDER = path.join(__dirname, 'videos', 'input');
 fs.mkdirSync(INPUT_FOLDER, { recursive: true });
 fs.mkdirSync(config.TEMP_FOLDER, { recursive: true });
 
-// Variables de control
+// ⚙️ Variables de control
 let PROCESANDO = false;
-const cola = []; // Usamos array como cola, más rápido que estructuras complejas
+const cola = [];
 
-// 🎨 Clase para generar mensajes
+// 🎨 Clase para generar los mensajes que se envían a Telegram
 class MallyLogger {
     constructor(nombre, total) {
         this.nombre = nombre.trim().toUpperCase();
@@ -31,17 +31,17 @@ class MallyLogger {
     }
 }
 
-// ⚡ Productor: Corta y agrega a la cola
+// ⚡ Productor: Corta los segmentos y los agrega a la cola
 function productor(rutaVideo, totalPartes, log) {
     return new Promise(async (resolve) => {
         for (let n = 1; n <= totalPartes; n++) {
             console.log(`⚡ CORTANDO PARTE ${n}/${totalPartes}`);
             
-            // Cortar el segmento
+            // Llamamos a la función que corta el vídeo
             const rutaArchivo = await cortar.extraerSegmento(rutaVideo, n);
             
             if (fs.existsSync(rutaArchivo)) {
-                // Agregar a la cola para ser enviado
+                // Agregamos a la cola para que se envíe
                 cola.push({
                     n: n,
                     path: rutaArchivo,
@@ -49,17 +49,17 @@ function productor(rutaVideo, totalPartes, log) {
                 });
             }
         }
-        // Marcar fin de elementos
+        // Marcamos que terminó de agregar todos los elementos
         cola.push(null);
         resolve();
     });
 }
 
-// 📤 Consumidor: Envía mientras se siguen cortando
+// 📤 Consumidor: Envía los archivos mientras se siguen cortando
 function consumidor() {
     return new Promise(async (resolve) => {
         while (true) {
-            // Esperar hasta que haya elementos en la cola
+            // Esperamos hasta que haya archivos en la cola
             while (cola.length === 0) {
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
@@ -72,10 +72,10 @@ function consumidor() {
             const enviado = await enviar.despacharATelegram(item.path, item.caption);
             
             if (enviado) {
-                console.log(`✅ PARTE ${item.n} ENVIADA`);
+                console.log(`✅ PARTE ${item.n} ENVIADA CORRECTAMENTE`);
             }
 
-            // Eliminar archivo después de enviarlo
+            // Eliminamos el archivo temporal después de enviarlo
             if (fs.existsSync(item.path)) {
                 fs.unlinkSync(item.path);
             }
@@ -87,33 +87,39 @@ function consumidor() {
 // 🛠️ Configuración de Express
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(fileUpload({
+    limits: { fileSize: 1024 * 1024 * 1024 * 5 }, // Límite de 5GB por archivo
+    abortOnLimit: false
+}));
+
+// ✅ ESTA ES LA LÍNEA AGREGADA: Permite cargar archivos estáticos (CSS, imágenes, etc.) de la carpeta templates
 app.use(express.static(path.join(__dirname, 'templates')));
 
-// 📋 Rutas
+// 📋 Rutas del sistema
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'templates', 'index.html'));
 });
 
 app.post('/procesar', async (req, res) => {
     if (PROCESANDO) {
-        return res.json({ status: "ocupado", mensaje: "⏳ Ya estoy trabajando..." });
+        return res.json({ status: "ocupado", mensaje: "⏳ Ya estoy trabajando en otro vídeo, espera un momento..." });
     }
 
     if (!req.files || !req.files.video) {
-        return res.json({ status: "error", mensaje: "Selecciona un video" });
+        return res.json({ status: "error", mensaje: "❌ Debes seleccionar un archivo de vídeo" });
     }
 
     const archivo = req.files.video;
-    const titulo = req.body.titulo || "SIN TITULO";
+    const titulo = req.body.titulo || "SIN TÍTULO";
 
-    // Guardar archivo subido
+    // Guardamos el archivo subido en la carpeta de entrada
     const rutaEntrada = path.join(INPUT_FOLDER, archivo.name);
     await archivo.mv(rutaEntrada);
 
     PROCESANDO = true;
 
     try {
-        // 🧮 Calcular duración y cantidad de partes
+        // 🧮 Calculamos la duración total del vídeo y la cantidad de partes
         const duracion = await new Promise((resolve, reject) => {
             execFile('ffprobe', [
                 '-v', 'error',
@@ -128,39 +134,37 @@ app.post('/procesar', async (req, res) => {
 
         const totalPartes = Math.floor(duracion / config.CLIP_DURATION) + 1;
 
-        // Enviar respuesta inmediata
+        // Enviamos la respuesta al usuario de inmediato
         res.json({
             status: "ok",
             mensaje: `🚀 PROCESANDO ${totalPartes} PARTES EN MODO LUZ`
         });
 
-        // 🚀 Iniciar proceso en paralelo
-        console.log(`🔥 INICIANDO: ${titulo} | PARTES: ${totalPartes}`);
+        // 🚀 Iniciamos los procesos en paralelo: cortar y enviar al mismo tiempo
+        console.log(`🔥 INICIANDO PROCESO: ${titulo} | CANTIDAD DE PARTES: ${totalPartes}`);
         const log = new MallyLogger(titulo, totalPartes);
 
-        // Ejecutar al mismo tiempo
         await Promise.all([
             productor(rutaEntrada, totalPartes, log),
             consumidor()
         ]);
 
-        // 🧹 Limpieza final
+        // 🧹 Limpiamos el archivo original después de terminar todo
         if (fs.existsSync(rutaEntrada)) {
             fs.unlinkSync(rutaEntrada);
         }
 
         PROCESANDO = false;
-        console.log("✅ MISION COMPLETADA");
+        console.log("✅ ¡MISIÓN COMPLETADA! Todo enviado correctamente");
 
     } catch (error) {
         PROCESANDO = false;
         console.error("❌ ERROR EN EL PROCESO:", error);
-        res.json({ status: "error", mensaje: "Ocurrió un error al procesar el vídeo" });
+        res.json({ status: "error", mensaje: "❌ Ocurrió un error al procesar el vídeo" });
     }
 });
 
-// 🚀 Iniciar servidor
+// 🚀 Iniciamos el servidor
 console.log("⚡ MALLYCUTS - MODO EXPRESS ACTIVADO ⚡");
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🌐 Servidor activo en http://localhost:${PORT}`);
-});
+console.log("🌐 Accedé desde tu navegador a: http://localhost:5000");
+app.listen(PORT, '0.0.0.0', () => {});
