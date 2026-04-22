@@ -144,8 +144,8 @@ app.post('/procesar', async (req, res) => {
                 rutaArchivoOriginal
             ], (error, stdout) => {
                 if (error || !stdout || isNaN(parseFloat(stdout))) {
-                    console.log("⚠️ No se pudo leer la duración exacta, se usará valor estimado");
-                    return resolve(18000); // 5 horas por defecto
+                    console.log("⚠️ No se pudo leer la duración exacta, se usará valor estimado de 5 horas");
+                    return resolve(18000);
                 }
                 resolve(parseFloat(stdout.trim()));
             });
@@ -191,3 +191,25 @@ app.post('/procesar', async (req, res) => {
         PROCESANDO = false;
         console.error("\n❌ ERROR GENERAL:", error.message);
         res.json({ status: "error", mensaje: "❌ Ocurrió un error al procesar el archivo" });
+
+        // Liberamos archivos si ocurrió un error
+        const rutaArchivoOriginal = path.join(INPUT_FOLDER, req.files?.video?.name || "");
+        if (fs.existsSync(rutaArchivoOriginal)) fs.unlinkSync(rutaArchivoOriginal);
+        
+        fs.readdirSync(TEMP_UPLOAD_FOLDER).forEach(archivoTemp => {
+            const rutaTemp = path.join(TEMP_UPLOAD_FOLDER, archivoTemp);
+            fs.unlinkSync(rutaTemp);
+        });
+    }
+});
+
+// 🚀 Iniciar servidor
+console.log("==================================================");
+console.log("⚡ MALLYCUTS - SISTEMA ACTIVADO");
+console.log("🌐 Accedé en tu navegador: http://localhost:5000");
+console.log("⏱️ Cada parte dura:", config.CLIP_DURATION, "segundos");
+console.log("👤 Canal visible:", config.CANAL_MIO.NOMBRE);
+console.log("🔒 Contenido guardado solo en tu canal privado");
+console.log("==================================================");
+
+app.listen(PORT, '0.0.0.0', () => {});
