@@ -10,32 +10,34 @@ const config = require('./config');
 const app = express();
 const PORT = 5000;
 
-// 📂 Carpetas de trabajo
+// 📂 Carpetas
 const INPUT_FOLDER = path.join(__dirname, 'videos', 'input');
 const TEMP_UPLOAD_FOLDER = path.join(__dirname, 'temp_uploads');
 fs.mkdirSync(INPUT_FOLDER, { recursive: true });
 fs.mkdirSync(config.TEMP_FOLDER, { recursive: true });
 fs.mkdirSync(TEMP_UPLOAD_FOLDER, { recursive: true });
 
-// ⚙️ Variables de control
+// ⚙️ Control
 let PROCESANDO = false;
 const cola = [];
 
-// 🎨 Mensajes simples
+// 🎨 MENSAJES QUE MUESTRAN TU CANAL PÚBLICO
 class MallyLogger {
     constructor(nombre, total) {
         this.nombre = nombre.trim().toUpperCase();
         this.total = total;
+        this.canalVisible = config.CANAL_MIO.NOMBRE;
     }
 
     obtenerMensaje(n) {
         return `🎬 <b>${this.nombre}</b>
 💎 <b>PARTE:</b> ${n} / ${this.total}
-✅ <i>Contenido procesado</i>`;
+✅ <i>Contenido procesado y verificado</i>
+🔗 ${this.canalVisible}`;
     }
 }
 
-// ⚡ Cortar vídeo
+// ⚡ Cortar
 function productor(rutaVideo, totalPartes, log) {
     return new Promise(async (resolve) => {
         for (let n = 1; n <= totalPartes; n++) {
@@ -55,7 +57,7 @@ function productor(rutaVideo, totalPartes, log) {
     });
 }
 
-// 📤 Enviar archivo
+// 📤 Enviar
 function consumidor() {
     return new Promise(async (resolve) => {
         while (true) {
@@ -75,7 +77,6 @@ function consumidor() {
                 console.log(`⚠️ PARTE ${item.numero} NO SE PUDO ENVIAR`);
             }
 
-            // Eliminar archivo temporal
             if (fs.existsSync(item.ruta)) {
                 fs.unlinkSync(item.ruta);
             }
@@ -84,11 +85,10 @@ function consumidor() {
     });
 }
 
-// 🛠️ Configuración del servidor
+// 🛠️ Servidor
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// Configuración de subida de archivos
 app.use(fileUpload({
     limits: { fileSize: 10 * 1024 * 1024 * 1024 },
     abortOnLimit: false,
@@ -100,7 +100,6 @@ app.use(fileUpload({
     createParentPath: true
 }));
 
-// Archivos estáticos
 app.use(express.static(path.join(__dirname, 'templates')));
 
 // 📋 Rutas
@@ -129,11 +128,10 @@ app.post('/procesar', async (req, res) => {
     PROCESANDO = true;
 
     try {
-        // Guardar archivo recibido
         const rutaArchivoOriginal = path.join(INPUT_FOLDER, archivoRecibido.name);
         await archivoRecibido.mv(rutaArchivoOriginal);
 
-        // Calcular duración y cantidad de partes
+        // 🧮 Calcular duración
         const duracionSegundos = await new Promise((resolve) => {
             execFile('ffprobe', [
                 '-v', 'error',
@@ -151,29 +149,27 @@ app.post('/procesar', async (req, res) => {
 
         const cantidadPartes = Math.floor(duracionSegundos / config.CLIP_DURATION) + 1;
 
-        // Responder al usuario
         res.json({
             status: "ok",
             mensaje: `🚀 PROCESANDO ${cantidadPartes} PARTES`
         });
 
-        // Mostrar información en consola
         console.log("\n" + "=".repeat(50));
         console.log("📋 DATOS DEL PROCESO");
         console.log(`📌 Título: ${tituloArchivo}`);
         console.log(`⏱️ Duración total: ${Math.round(duracionSegundos)} segundos`);
         console.log(`🔢 Cantidad de partes: ${cantidadPartes}`);
-        console.log(`📤 Canal destino: ${config.CANAL_ID}`);
+        console.log(`👤 Canal que se muestra: ${config.CANAL_MIO.NOMBRE}`);
+        console.log(`🔒 Archivos guardados en: Canal Privado`);
         console.log("=".repeat(50) + "\n");
 
-        // Iniciar proceso
         const generadorMensajes = new MallyLogger(tituloArchivo, cantidadPartes);
         await Promise.all([
             productor(rutaArchivoOriginal, cantidadPartes, generadorMensajes),
             consumidor()
         ]);
 
-        // Limpieza final
+        // 🧹 Limpieza
         if (fs.existsSync(rutaArchivoOriginal)) fs.unlinkSync(rutaArchivoOriginal);
         fs.readdirSync(TEMP_UPLOAD_FOLDER).forEach(archivoTemp => {
             const rutaTemp = path.join(TEMP_UPLOAD_FOLDER, archivoTemp);
@@ -189,7 +185,6 @@ app.post('/procesar', async (req, res) => {
         console.error("\n❌ ERROR:", error.message);
         res.json({ status: "error", mensaje: "❌ Ocurrió un error al procesar" });
 
-        // Limpiar archivos si hay error
         const rutaArchivoOriginal = path.join(INPUT_FOLDER, req.files?.video?.name || "");
         if (fs.existsSync(rutaArchivoOriginal)) fs.unlinkSync(rutaArchivoOriginal);
         
@@ -202,11 +197,11 @@ app.post('/procesar', async (req, res) => {
 
 // 🚀 Iniciar servidor
 console.log("==================================================");
-console.log("⚡ MALLYCUTS - SISTEMA ACTIVADO");
+console.log("⚡ MALLYCUTS - SISTEMA ACTIVADO CON LOS 2 CANALES");
 console.log("🌐 Accedé en: http://localhost:5000");
 console.log("⏱️ Duración por parte:", config.CLIP_DURATION, "segundos");
-console.log("📤 Enviando a canal ID:", config.CANAL_ID);
+console.log("👤 Canal público visible:", config.CANAL_MIO.NOMBRE);
+console.log("🔒 Contenido guardado solo en tu canal privado");
 console.log("==================================================");
 
-// ✅ LÍNEA CORREGIDA COMPLETAMENTE, sin errores
 app.listen(PORT, '0.0.0.0', () => {});
