@@ -3,168 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MallyCuts Express</title>
-    <!-- Referencia al archivo de estilos -->
-    <link rel="stylesheet" href="/index.css">
-    <!-- Iconos -->
-    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <title>MallyCuts</title>
+    <link rel="stylesheet" href="estilo.css">
 </head>
 <body>
-    <!-- Encabezado -->
-    <header class="encabezado">
-        <h1 class="titulo-principal">
-            <i class="fa fa-cut"></i>
-            MALLYCUTS EXPRESS
-        </h1>
-    </header>
+    <div class="contenedor-principal">
+        <!-- TÍTULO PRINCIPAL QUE TÚ PONES -->
+        <h1>MALLYCUTS</h1>
 
-    <!-- Contenido Principal -->
-    <main class="contenedor-principal">
-        <!-- Tarjeta Principal -->
-        <div class="tarjeta-principal">
-            <p class="descripcion">Corta y envía tus vídeos automáticamente a Telegram</p>
-
-            <!-- Formulario -->
-            <form id="formulario" class="formulario">
-                <!-- Campo Título -->
-                <div class="campo-grupo">
-                    <label for="titulo" class="etiqueta">
-                        <i class="fa fa-pencil"></i> Título del vídeo
-                    </label>
-                    <input 
-                        type="text" 
-                        id="titulo" 
-                        name="titulo" 
-                        placeholder="Ej: Mi serie favorita - Capítulo 1" 
-                        required
-                        class="entrada-texto"
-                    >
-                </div>
-
-                <!-- Campo Archivo -->
-                <div class="campo-grupo">
-                    <label for="video" class="etiqueta">
-                        <i class="fa fa-file-video-o"></i> Seleccionar vídeo
-                    </label>
-                    <input 
-                        type="file" 
-                        id="video" 
-                        name="video" 
-                        accept="video/*" 
-                        required
-                        class="entrada-archivo"
-                    >
-                    <p class="texto-ayuda">Formatos admitidos: MP4, AVI, MOV, MKV y más</p>
-                </div>
-
-                <!-- Botón de Envío -->
-                <button 
-                    type="submit" 
-                    id="botonEnviar"
-                    class="boton-enviar"
+        <div class="caja-formulario">
+            <!-- CAMPO PARA EL TÍTULO DEL CONTENIDO -->
+            <div class="campo">
+                <label for="titulo">📝 Título del contenido</label>
+                <input 
+                    type="text" 
+                    id="titulo" 
+                    placeholder="Escribí aquí el título..." 
+                    autocomplete="off"
                 >
-                    <i class="fa fa-rocket"></i>
-                    <span>INICIAR PROCESAMIENTO</span>
-                </button>
-            </form>
+            </div>
 
-            <!-- Área de Estado -->
-            <div id="estado" class="area-estado oculto"></div>
-        </div>
+            <!-- CAMPO PARA SUBIR EL VÍDEO -->
+            <div class="campo">
+                <label for="video">📹 Subir vídeo</label>
+                <div class="area-subida" id="areaSubida">
+                    <input type="file" id="video" accept="video/*">
+                    <p id="textoAyuda">Hacé clic o arrastrá el archivo aquí</p>
+                    <span id="nombreArchivo" class="nombre-archivo"></span>
+                </div>
+            </div>
 
-        <!-- Información Adicional -->
-        <div class="info-adicional">
-            <p><i class="fa fa-info-circle"></i> El sistema cortará el vídeo en segmentos de 60 segundos y los enviará automáticamente</p>
-            <p class="mt-1">Desarrollado para <span class="texto-acento">@MallyUmbrae</span></p>
+            <!-- ZONA DE MENSAJES -->
+            <div class="zona-mensajes">
+                <div id="mensajeAlerta" class="mensaje alerta">
+                    ⚠️ Te falta poner el título primero
+                </div>
+                <div id="mensajeProcesando" class="mensaje procesando">
+                    ⏳ PROCESANDO... Espere un momento por favor
+                </div>
+                <div id="mensajeExito" class="mensaje exito">
+                    ✅ ¡Todo listo! El contenido se está enviando a los canales
+                </div>
+                <div id="mensajeError" class="mensaje error">
+                    ❌ Ocurrió un error, revisá los datos e intentá de nuevo
+                </div>
+            </div>
         </div>
-    </main>
+    </div>
 
     <script>
-        const formulario = document.getElementById('formulario');
-        const estadoDiv = document.getElementById('estado');
-        const botonEnviar = document.getElementById('botonEnviar');
+        // Elementos del HTML
+        const inputTitulo = document.getElementById('titulo');
+        const inputVideo = document.getElementById('video');
+        const textoAyuda = document.getElementById('textoAyuda');
+        const nombreArchivo = document.getElementById('nombreArchivo');
+        const areaSubida = document.getElementById('areaSubida');
 
-        formulario.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Mensajes
+        const mensajeAlerta = document.getElementById('mensajeAlerta');
+        const mensajeProcesando = document.getElementById('mensajeProcesando');
+        const mensajeExito = document.getElementById('mensajeExito');
+        const mensajeError = document.getElementById('mensajeError');
 
-            // Mostrar estado de carga
-            estadoDiv.classList.remove('oculto', 'estado-exito', 'estado-aviso', 'estado-error');
-            estadoDiv.classList.add('estado-cargando');
-            estadoDiv.innerHTML = `
-                <div class="contenido-estado">
-                    <i class="fa fa-spinner fa-spin icono-estado"></i>
-                    <span class="texto-estado">📤 Subiendo archivo... Por favor espera</span>
-                </div>
-            `;
+        // Ocultar todos los mensajes al principio
+        function ocultarTodosLosMensajes() {
+            mensajeAlerta.style.display = 'none';
+            mensajeProcesando.style.display = 'none';
+            mensajeExito.style.display = 'none';
+            mensajeError.style.display = 'none';
+        }
 
-            // Desactivar botón para evitar envíos duplicados
-            botonEnviar.disabled = true;
-            botonEnviar.innerHTML = `<i class="fa fa-clock-o"></i> <span>PROCESANDO...</span>`;
-            botonEnviar.classList.add('boton-deshabilitado');
+        // Mostrar solo el mensaje que corresponda
+        function mostrarMensaje(mensaje) {
+            ocultarTodosLosMensajes();
+            mensaje.style.display = 'block';
+        }
 
-            try {
-                // Preparar datos y enviar al servidor
-                const datosFormulario = new FormData(formulario);
-                const respuesta = await fetch('/procesar', {
+        // Verificar si ya se puede procesar
+        function verificarCondiciones() {
+            const tituloEscrito = inputTitulo.value.trim();
+            const archivoSeleccionado = inputVideo.files.length > 0;
+
+            // Si hay video pero NO hay título
+            if (archivoSeleccionado && !tituloEscrito) {
+                mostrarMensaje(mensajeAlerta);
+                return false;
+            }
+
+            // Si ya hay título Y ya hay video: ¡PROCESAR AUTOMÁTICAMENTE!
+            if (tituloEscrito && archivoSeleccionado) {
+                mostrarMensaje(mensajeProcesando);
+                
+                // Enviar los datos al sistema automáticamente
+                const formData = new FormData();
+                formData.append('titulo', tituloEscrito);
+                formData.append('video', inputVideo.files[0]);
+
+                fetch('/procesar', {
                     method: 'POST',
-                    body: datosFormulario
+                    body: formData
+                })
+                .then(respuesta => respuesta.json())
+                .then(datos => {
+                    if (datos.status === 'ok') {
+                        mostrarMensaje(mensajeExito);
+                        // Limpiar campos después de terminar
+                        setTimeout(() => {
+                            inputTitulo.value = '';
+                            inputVideo.value = '';
+                            nombreArchivo.textContent = '';
+                            textoAyuda.style.display = 'block';
+                            ocultarTodosLosMensajes();
+                        }, 4000);
+                    } else {
+                        mostrarMensaje(mensajeError);
+                    }
+                })
+                .catch(() => {
+                    mostrarMensaje(mensajeError);
                 });
 
-                const resultado = await respuesta.json();
+                return true;
+            }
 
-                // Mostrar el resultado según la respuesta
-                if (resultado.status === "ok") {
-                    estadoDiv.classList.remove('estado-cargando');
-                    estadoDiv.classList.add('estado-exito');
-                    estadoDiv.innerHTML = `
-                        <div class="contenido-estado">
-                            <i class="fa fa-check-circle icono-estado"></i>
-                            <div>
-                                <span class="titulo-estado">¡Proceso iniciado correctamente!</span>
-                                <p class="detalle-estado">${resultado.mensaje}</p>
-                                <p class="detalle-estado">El sistema está trabajando en segundo plano, recibirás los archivos en tu canal de Telegram en breve.</p>
-                            </div>
-                        </div>
-                    `;
-                } 
-                else if (resultado.status === "ocupado") {
-                    estadoDiv.classList.remove('estado-cargando');
-                    estadoDiv.classList.add('estado-aviso');
-                    estadoDiv.innerHTML = `
-                        <div class="contenido-estado">
-                            <i class="fa fa-exclamation-triangle icono-estado"></i>
-                            <span class="texto-estado">${resultado.mensaje}</span>
-                        </div>
-                    `;
-                } 
-                else {
-                    estadoDiv.classList.remove('estado-cargando');
-                    estadoDiv.classList.add('estado-error');
-                    estadoDiv.innerHTML = `
-                        <div class="contenido-estado">
-                            <i class="fa fa-times-circle icono-estado"></i>
-                            <span class="texto-estado">${resultado.mensaje || "Ocurrió un error inesperado"}</span>
-                        </div>
-                    `;
-                }
+            // Si falta alguno de los dos, no hacer nada
+            ocultarTodosLosMensajes();
+            return false;
+        }
 
-            } catch (error) {
-                estadoDiv.classList.remove('estado-cargando');
-                estadoDiv.classList.add('estado-error');
-                estadoDiv.innerHTML = `
-                    <div class="contenido-estado">
-                        <i class="fa fa-times-circle icono-estado"></i>
-                        <span class="texto-estado">❌ No se pudo conectar al servidor. Revisa tu conexión o el estado del sistema.</span>
-                    </div>
-                `;
-                console.error("Error de conexión:", error);
-            } 
-            finally {
-                // Restaurar botón y limpiar formulario
-                botonEnviar.disabled = false;
-                botonEnviar.innerHTML = `<i class="fa fa-rocket"></i> <span>INICIAR PROCESAMIENTO</span>`;
-                botonEnviar.classList.remove('boton-deshabilitado');
-                formulario.reset();
+        // Evento cuando cambia el título
+        inputTitulo.addEventListener('input', verificarCondiciones);
+
+        // Evento cuando se sube el vídeo
+        inputVideo.addEventListener('change', () => {
+            if (inputVideo.files.length > 0) {
+                textoAyuda.style.display = 'none';
+                nombreArchivo.textContent = `📁 Archivo: ${inputVideo.files[0].name}`;
+            } else {
+                textoAyuda.style.display = 'block';
+                nombreArchivo.textContent = '';
+            }
+            verificarCondiciones();
+        });
+
+        // Efecto visual al arrastrar archivos
+        areaSubida.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            areaSubida.classList.add('activo');
+        });
+
+        areaSubida.addEventListener('dragleave', () => {
+            areaSubida.classList.remove('activo');
+        });
+
+        areaSubida.addEventListener('drop', (e) => {
+            e.preventDefault();
+            areaSubida.classList.remove('activo');
+            if (e.dataTransfer.files.length > 0) {
+                inputVideo.files = e.dataTransfer.files;
+                textoAyuda.style.display = 'none';
+                nombreArchivo.textContent = `📁 Archivo: ${e.dataTransfer.files[0].name}`;
+                verificarCondiciones();
             }
         });
     </script>
