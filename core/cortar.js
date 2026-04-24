@@ -27,15 +27,15 @@ async function extraerYEditarSegmento(rutaArchivo, numeroParte, titulo) {
                 .setStartTime(tiempoInicio)
                 .duration(duracionPorParte)
 
-                // Aplicar todos los filtros juntos para mayor velocidad
+                // Aplicar todos los filtros juntos
                 .videoFilters([
                     // 1. VELOCIDAD DE REPRODUCCIÓN
                     `setpts=${1 / config.VELOCIDAD_VIDEO}*PTS`,
-                    // 2. MARCA DE AGUA EN EL CENTRO
+                    // 2. MARCA DE AGUA CON DOS LÍNEAS
                     {
                         filter: 'drawtext',
                         options: {
-                            text: config.TEXTO_MARCA_AGUA,
+                            text: 'EscenaEn15\\Dola IA', // <-- TEXTO FINAL
                             fontfile: '/system/fonts/Roboto-Regular.ttf',
                             fontsize: 40,
                             fontcolor: 'white@0.8',
@@ -46,14 +46,14 @@ async function extraerYEditarSegmento(rutaArchivo, numeroParte, titulo) {
                         }
                     }
                 ])
-                // Filtro de audio aparte
+                // Filtro de audio
                 .audioFilters(`atempo=${config.VELOCIDAD_VIDEO}`)
 
                 // Configuración de salida RÁPIDA
                 .outputOptions([
                     '-c:v libx264',
-                    '-preset fast',      // <-- CLAVE: Más rápido
-                    '-crf 23',           // Calidad buena / tamaño equilibrado
+                    '-preset fast',
+                    '-crf 23',
                     '-c:a aac',
                     '-b:a 128k',
                     '-movflags +faststart'
