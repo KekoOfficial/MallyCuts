@@ -34,8 +34,8 @@ const CONFIGURACION_TELEGRAM = {
 
 const PARAMETROS_SISTEMA = {
     // Duración de cada fragmento en segundos
-    DURACION_POR_PARTE: 180,
-    
+    DURACION_POR_PARTE: 120,
+
     // Control de errores y tiempos
     INTENTOS_MAXIMOS: 3,
     TIEMPO_ESPERA_ENVIO: 300000, // 5 minutos
