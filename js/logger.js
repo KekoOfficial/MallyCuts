@@ -2,8 +2,6 @@
 // 📋 LOGGER AVANZADO - MALLYCUTS
 // ==============================================
 
-const moment = require('moment'); // Para fecha y hora perfecta
-
 // Códigos de color para la consola
 const colores = {
     reset: "\x1b[0m",
@@ -17,9 +15,22 @@ const colores = {
     gris: "\x1b[90m"
 };
 
-// Formatear fecha actual
+// Formatear fecha actual (SIN INSTALAR NADA)
 function obtenerFecha() {
-    return moment().format('DD/MM/YYYY, hh:mm:ss a');
+    const ahora = new Date();
+    
+    const dia = String(ahora.getDate()).padStart(2, '0');
+    const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+    const anio = ahora.getFullYear();
+    
+    let horas = ahora.getHours();
+    const minutos = String(ahora.getMinutes()).padStart(2, '0');
+    const segundos = String(ahora.getSeconds()).padStart(2, '0');
+    
+    const ampm = horas >= 12 ? 'p. m.' : 'a. m.';
+    horas = horas % 12 || 12; // Convertir a formato 12h
+
+    return `${dia}/${mes}/${anio}, ${horas}:${minutos}:${segundos} ${ampm}`;
 }
 
 // ==============================================
