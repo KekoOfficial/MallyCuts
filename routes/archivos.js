@@ -1,5 +1,5 @@
 // 📤 RUTAS Y FUNCIONES PARA PROCESAR ARCHIVOS SUBIDOS
-// Versión corregida - Compatible con config.js actual
+// Versión optimizada para archivos pesados y alta velocidad
 
 const express = require('express');
 const router = express.Router();
@@ -7,7 +7,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Importamos módulos
+// Importamos módulos internos
 const log = require('../js/logger');
 const config = require('../config');
 const { obtenerDuracionVideo, formatoDuracion, archivoEsValido, obtenerTamanoArchivoMB } = require('./utilidades');
@@ -15,22 +15,18 @@ const { extraerSegmento } = require('../core/cortar');
 const { enviarADosCanales } = require('../core/enviar');
 
 // ==============================================
-// 💡 SOLUCIÓN DEFINITIVA: Definimos las rutas
+// 💡 CONFIGURACIÓN DE CARPETAS
 // ==============================================
-// Como en tu config.js las rutas están dentro de objetos separados,
-// las traemos y aseguramos que existan para que Multer no falle.
-
-const CARPETA_ENTRADA = config.INPUT_FOLDER || path.join(__dirname, '..', 'videos', 'input');
-const CARPETA_TEMPORAL = config.TEMP_FOLDER || path.join(__dirname, '..', 'videos', 'output');
+const CARPETA_ENTRADA = config.CARPETA_ENTRADA;
+const CARPETA_TEMPORAL = config.CARPETA_TEMPORAL;
 
 // ==============================================
-// CONFIGURACIÓN DE MULTER
+// 📥 CONFIGURACIÓN DE MULTER
 // ==============================================
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         log.detalle(`Preparando espacio para guardar el archivo...`);
-        // ✅ Ahora sí pasamos un STRING válido
         cb(null, CARPETA_ENTRADA);
     },
     filename: function (req, file, cb) {
@@ -42,10 +38,7 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-    const formatosPermitidos = [
-        'video/mp4', 'video/mkv', 'video/avi', 'video/mov',
-        'video/flv', 'video/wmv', 'video/mpeg', 'video/webm'
-    ];
+    const formatosPermitidos = ['video/mp4', 'video/mkv', 'video/avi', 'video/mov', 'video/flv', 'video/wmv', 'video/mpeg', 'video/webm'];
     if (formatosPermitidos.includes(file.mimetype)) {
         log.exito(`Formato de archivo válido: ${file.mimetype}`);
         cb(null, true);
@@ -55,16 +48,17 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
+// ⚙️ LÍMITE DE SUBIDA CONFIGURADO A 10 GB
 const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
-        fileSize: config.TAMANIO_MAXIMO || 50 * 1024 * 1024
+        fileSize: 10 * 1024 * 1024 * 1024 // 10 GB
     }
 }).single('archivo_video');
 
 // ==============================================
-// RUTA PRINCIPAL
+// 🚀 RUTA PRINCIPAL DE PROCESAMIENTO
 // ==============================================
 
 router.post('/procesar', (req, res) => {
@@ -83,7 +77,7 @@ router.post('/procesar', (req, res) => {
                 });
             }
 
-            // Validaciones
+            // Verificar datos obligatorios
             if (!req.file || !req.body.titulo) {
                 log.error('Faltan datos obligatorios');
                 return res.json({
@@ -101,18 +95,18 @@ router.post('/procesar', (req, res) => {
             const rutaOriginal = path.join(CARPETA_ENTRADA, req.file.filename);
             const tituloLimpio = req.body.titulo.replace(/[<>:"/\\|?*\n\r\t]/g, ' ').trim();
 
-            // Obtener duración
+            // Obtener duración total
             log.info('🔍 Analizando archivo para obtener información...');
             const duracionTotal = await obtenerDuracionVideo(rutaOriginal);
             log.exito(`Duración total del video: ${formatoDuracion(duracionTotal)}`);
 
-            // Calcular partes
-            const duracionPorParte = config.DURACION_POR_PARTE || 60;
+            // Calcular cantidad de partes
+            const duracionPorParte = config.DURACION_POR_PARTE || 120;
             const cantidadPartes = Math.ceil(duracionTotal / duracionPorParte);
             log.info(`📋 Se dividirá el video en ${cantidadPartes} partes de ${duracionPorParte} segundos cada una`);
 
             // ==============================================
-            // CORTE Y PROCESAMIENTO
+            // ✂️ INICIO DE CORTE Y PROCESAMIENTO
             // ==============================================
             log.separador();
             log.info('✂️ INICIANDO CORTE Y PROCESAMIENTO DE PARTES');
@@ -131,10 +125,13 @@ router.post('/procesar', (req, res) => {
                     );
 
                     if (rutaParte && archivoEsValido(rutaParte)) {
-                        partesGeneradas.push({ numero: i, ruta: rutaParte });
+                        partesGeneradas.push({
+                            numero: i,
+                            ruta: rutaParte
+                        });
                         log.exito(`Parte ${i} generada correctamente | Tamaño: ${obtenerTamanoArchivoMB(rutaParte)}`);
                     } else {
-                        throw new Error(`Archivo generado no válido para la parte ${i}`);
+                        throw new Error(`El archivo generado para la parte ${i} no es válido`);
                     }
 
                 } catch (error) {
@@ -142,17 +139,18 @@ router.post('/procesar', (req, res) => {
                 }
             }
 
+            // Verificar si se generaron partes
             if (partesGeneradas.length === 0) {
-                throw new Error('No se pudo generar ninguna parte válida');
+                throw new Error('No se pudo generar ninguna parte válida del video');
             }
 
             log.exito(`\n✅ Proceso de corte finalizado. Generadas ${partesGeneradas.length} partes válidas`);
 
             // ==============================================
-            // ENVÍO A TELEGRAM
+            // 📤 ENVÍO A TELEGRAM
             // ==============================================
             log.separador();
-            log.info('📤 INICIANDO ENVÍO A LOS CANALES');
+            log.info('📤 INICIANDO ENVÍO A LOS CANALES DE TELEGRAM');
             log.separador();
 
             for (const parte of partesGeneradas) {
@@ -166,26 +164,28 @@ router.post('/procesar', (req, res) => {
                 try {
                     await enviarADosCanales(parte.ruta, mensaje, parte.numero);
                     
-                    if (config.BORRAR_ARCHIVOS_DESPUES && fs.existsSync(parte.ruta)) {
+                    // Borrar archivo temporal
+                    if (config.ELIMINAR_ARCHIVOS_AL_TERMINAR && fs.existsSync(parte.ruta)) {
                         fs.unlinkSync(parte.ruta);
-                        log.detalle(`🗑️ Archivo temporal parte ${parte.numero} eliminado`);
+                        log.detalle(`🗑️ Archivo temporal de la parte ${parte.numero} eliminado`);
                     }
 
                 } catch (error) {
-                    log.error(`Error al enviar parte ${parte.numero}`, error);
+                    log.error(`Error al enviar la parte ${parte.numero}`, error);
                 }
 
+                // Pausa entre envíos para estabilidad
                 await new Promise(resolve => setTimeout(resolve, 3000));
             }
 
-            // Borrar original
-            if (config.BORRAR_ARCHIVOS_DESPUES && fs.existsSync(rutaOriginal)) {
+            // Borrar archivo original
+            if (config.ELIMINAR_ARCHIVOS_AL_TERMINAR && fs.existsSync(rutaOriginal)) {
                 fs.unlinkSync(rutaOriginal);
-                log.detalle(`🗑️ Archivo original eliminado`);
+                log.detalle(`🗑️ Archivo original eliminado del sistema`);
             }
 
             // ==============================================
-            // FINALIZAR
+            // ✅ FINALIZACIÓN
             // ==============================================
             log.separador();
             log.exito('✅ PROCESO COMPLETADO CON ÉXITO');
@@ -193,7 +193,7 @@ router.post('/procesar', (req, res) => {
 
             return res.json({
                 status: 'ok',
-                mensaje: `¡Listo! Se procesaron y enviaron ${partesGeneradas.length} partes.`
+                mensaje: `¡Listo! Se procesaron y enviaron ${partesGeneradas.length} partes correctamente.`
             });
 
         } catch (errorGeneral) {
