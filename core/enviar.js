@@ -1,5 +1,5 @@
 // 📤 MÓDULO DE ENVÍO A TELEGRAM
-// Envía los archivos de video y mensajes a los canales configurados
+// Adaptado para la nueva estructura de configuración
 
 const fs = require('fs');
 const path = require('path');
@@ -8,30 +8,22 @@ const FormData = require('form-data');
 const log = require('../js/logger');
 const config = require('../config');
 
-// URL base de la API de Telegram
-const API_TELEGRAM_BASE = `https://api.telegram.org/bot${config.TOKEN_BOT}/`;
+// URL base de la API
+const API_URL = `https://api.telegram.org/bot${config.TOKEN}/`;
 
 /**
- * Envía un archivo de video y su mensaje a un canal específico
- * @param {string} rutaArchivo - Ruta completa del archivo a enviar
- * @param {string} mensaje - Texto que acompañará al video
- * @param {string} idCanal - ID o nombre de usuario del canal
- * @param {number} numeroParte - Número de la parte que se está enviando
- * @returns {Promise<boolean>} true si se envió correctamente, false si hubo error
+ * Envía un video a un canal específico
  */
 async function enviarACanal(rutaArchivo, mensaje, idCanal, numeroParte) {
     try {
-        // Verificamos que el archivo exista
         if (!fs.existsSync(rutaArchivo)) {
-            throw new Error(`El archivo no existe: ${rutaArchivo}`);
+            throw new Error(`Archivo no encontrado: ${rutaArchivo}`);
         }
 
-        const tamanoArchivo = fs.statSync(rutaArchivo).size;
-        const tamanoMB = (tamanoArchivo / (1024 * 1024)).toFixed(2);
+        const tamanoMB = (fs.statSync(rutaArchivo).size / (1024 * 1024)).toFixed(2);
+        log.detalle(`Enviando parte ${numeroParte} al canal ${idCanal} | ${tamanoMB} MB`);
 
-        log.detalle(`Enviando parte ${numeroParte} al canal ${idCanal} | Tamaño: ${tamanoMB} MB`);
-
-        // Preparamos los datos para enviar
+        // Preparamos datos
         const formData = new FormData();
         formData.append('chat_id', idCanal);
         formData.append('caption', mensaje);
@@ -42,64 +34,61 @@ async function enviarACanal(rutaArchivo, mensaje, idCanal, numeroParte) {
             contentType: 'video/mp4'
         });
 
-        // Enviamos la petición a la API de Telegram
-        const respuesta = await axios.post(`${API_TELEGRAM_BASE}sendVideo`, formData, {
+        // Enviamos
+        const respuesta = await axios.post(`${API_URL}sendVideo`, formData, {
             headers: formData.getHeaders(),
             maxBodyLength: Infinity,
-            maxContentLength: Infinity,
-            timeout: 300000 // 5 minutos de tiempo máximo de espera
+            timeout: config.TIEMPO_ESPERA_ENVIO || 300000
         });
 
-        // Verificamos la respuesta
         if (respuesta.data && respuesta.data.ok) {
-            log.detalle(`✅ Parte ${numeroParte} enviada correctamente a ${idCanal}`);
+            log.exito(`✅ Parte ${numeroParte} enviada correctamente`);
             return true;
         } else {
-            throw new Error(`Respuesta de Telegram: ${JSON.stringify(respuesta.data)}`);
+            throw new Error(`Respuesta API: ${JSON.stringify(respuesta.data)}`);
         }
 
     } catch (error) {
-        log.error(`❌ Error al enviar parte ${numeroParte} a ${idCanal}`, error);
+        log.error(`❌ Error al enviar parte ${numeroParte}`, error);
         return false;
     }
 }
 
 /**
- * Envía el contenido a los dos canales configurados
- * @param {string} rutaArchivo - Ruta completa del archivo a enviar
- * @param {string} mensaje - Texto que acompañará al video
- * @param {number} numeroParte - Número de la parte que se está enviando
- * @returns {Promise<boolean>} true si se envió a al menos un canal, false si fallaron todos
+ * Envía a los dos canales configurados
  */
 async function enviarADosCanales(rutaArchivo, mensaje, numeroParte) {
     try {
-        // Verificamos que tengamos los datos de configuración
-        if (!config.TOKEN_BOT) {
-            throw new Error('No se configuró el token del bot de Telegram');
-        }
-        if (!config.CANAL_PRINCIPAL && !config.CANAL_SECUNDARIO) {
-            throw new Error('No se configuraron los canales de destino');
+        // Verificamos credenciales
+        if (!config.TOKEN) {
+            throw new Error('No se configuró el TOKEN del bot en config.js');
         }
 
-        let enviosExitosos = 0;
+        const canalPublicoID = config.CANAL_PUBLICO.ID;
+        const canalPrivadoID = config.CANAL_PRIVADO.ID;
 
-        // Enviamos al canal principal si está configurado
-        if (config.CANAL_PRINCIPAL) {
-            const enviado = await enviarACanal(rutaArchivo, mensaje, config.CANAL_PRINCIPAL, numeroParte);
-            if (enviado) enviosExitosos++;
+        if (!canalPublicoID && !canalPrivadoID) {
+            throw new Error('No hay canales configurados para enviar');
         }
 
-        // Enviamos al canal secundario si está configurado
-        if (config.CANAL_SECUNDARIO) {
-            const enviado = await enviarACanal(rutaArchivo, mensaje, config.CANAL_SECUNDARIO, numeroParte);
-            if (enviado) enviosExitosos++;
+        let enviadoOK = false;
+
+        // Enviar al canal público
+        if (canalPublicoID) {
+            const enviado = await enviarACanal(rutaArchivo, mensaje, canalPublicoID, numeroParte);
+            if (enviado) enviadoOK = true;
         }
 
-        // Devolvemos true si al menos se envió a un canal
-        return enviosExitosos > 0;
+        // Enviar al canal privado
+        if (canalPrivadoID) {
+            const enviado = await enviarACanal(rutaArchivo, mensaje, canalPrivadoID, numeroParte);
+            if (enviado) enviadoOK = true;
+        }
+
+        return enviadoOK;
 
     } catch (error) {
-        log.error(`Error general al enviar la parte ${numeroParte}`, error);
+        log.error(`Error general envío parte ${numeroParte}`, error);
         return false;
     }
 }
