@@ -3,343 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MallyCuts</title>
+    <title>MallyCuts - Sistema Profesional</title>
     <link rel="stylesheet" href="index.css">
 </head>
 <body>
-    <div class="contenedor-principal">
-        <!-- TÍTULO PRINCIPAL -->
-        <h1>MALLYCUTS</h1>
+    <div class="container">
+        <header>
+            <h1>⚙️ MALLYCUTS</h1>
+            <p>Sistema automatizado de edición y envío</p>
+        </header>
 
-        <!-- 📤 SECCIÓN 1: SUBIR ARCHIVO DE VIDEO -->
-        <div class="seccion">
-            <h2>📁 Subir archivo de video</h2>
-            <div class="caja-formulario">
-                <div class="campo">
-                    <label for="titulo">📝 Título del contenido</label>
-                    <input 
-                        type="text" 
-                        id="titulo" 
-                        placeholder="Escribí aquí el título..." 
-                        autocomplete="off"
-                    >
-                </div>
-
-                <div class="campo">
-                    <label for="video">📹 Seleccionar video</label>
-                    <div class="area-subida" id="areaSubida">
-                        <input type="file" id="video" accept="video/*">
-                        <p id="textoAyuda">Hacé clic o arrastrá el archivo aquí</p>
-                        <span id="nombreArchivo" class="nombre-archivo"></span>
-                    </div>
-                </div>
-
-                <!-- 📊 BARRA DE PROGRESO PARA SUBIDA -->
-                <div class="barra-progreso-contenedor" id="barraSubidaContenedor" style="display: none;">
-                    <div class="texto-progreso">Subiendo: <span id="porcentajeSubida">0%</span></div>
-                    <div class="barra-progreso-fondo">
-                        <div class="barra-progreso-relleno" id="barraSubida"></div>
-                    </div>
-                </div>
-            </div>
+        <!-- 🎛️ PANEL DE OPCIONES -->
+        <div class="opciones-panel">
+            <button id="btnArchivo" class="boton-opcion activo">
+                📁 SUBIR VIDEO
+            </button>
+            <button id="btnEnlace" class="boton-opcion">
+                🔗 ENLACE / LINK
+            </button>
         </div>
 
-        <!-- 🔗 SECCIÓN 2: PROCESAR POR ENLACE -->
-        <div class="seccion">
-            <h2>🔗 Procesar por enlace</h2>
-            <div class="caja-formulario">
-                <div class="campo">
-                    <label for="enlace">🌐 Enlace del video</label>
-                    <input 
-                        type="url" 
-                        id="enlace" 
-                        placeholder="Ejemplo: https://www.tiktok.com/@usuario/video/123456789" 
-                        autocomplete="off"
-                    >
-                    <p class="texto-ayuda">Funciona con TikTok, YouTube, Instagram, Facebook y muchas plataformas más</p>
-                </div>
-
-                <!-- 📊 BARRA DE PROGRESO PARA DESCARGA -->
-                <div class="barra-progreso-contenedor" id="barraDescargaContenedor" style="display: none;">
-                    <div class="texto-progreso">Procesando: <span id="porcentajeDescarga">0%</span></div>
-                    <div class="barra-progreso-fondo">
-                        <div class="barra-progreso-relleno" id="barraDescarga"></div>
+        <main>
+            <!-- 📂 SECCIÓN: SUBIR ARCHIVO -->
+            <div id="seccionArchivo" class="seccion-formulario">
+                <form id="formularioArchivo" enctype="multipart/form-data">
+                    
+                    <div class="input-group">
+                        <label for="titulo">📝 Título del Video</label>
+                        <input type="text" id="titulo" name="titulo" placeholder="Ej: Serie Completa - Episodio 1" required>
                     </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- ZONA DE MENSAJES DE ESTADO -->
-        <div class="zona-mensajes">
-            <div id="mensajeAlerta" class="mensaje alerta">
-                ⚠️ Te falta poner el título primero
+                    <div class="input-group">
+                        <label for="video">🎬 Seleccionar Archivo</label>
+                        <div class="file-input">
+                            <input type="file" id="video" name="archivo_video" accept="video/*" required>
+                            <span id="file-label">Ningún archivo seleccionado</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-procesar">
+                        🚀 INICIAR PROCESO
+                    </button>
+                </form>
             </div>
-            <div id="mensajeProcesando" class="mensaje procesando">
-                ⏳ PROCESANDO... Espere un momento por favor
+
+            <!-- 🔗 SECCIÓN: PEGAR ENLACE -->
+            <div id="seccionEnlace" class="seccion-formulario" style="display: none;">
+                <form id="formularioEnlace">
+                    
+                    <div class="input-group">
+                        <label for="tituloEnlace">📝 Título del Video</label>
+                        <input type="text" id="tituloEnlace" name="titulo" placeholder="Ej: Serie Completa - Episodio 1" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="url">🔗 Pegar Enlace / URL</label>
+                        <input type="url" id="url" name="url" placeholder="https://..." required>
+                    </div>
+
+                    <button type="submit" class="btn-procesar">
+                        🚀 DESCARGAR Y PROCESAR
+                    </button>
+                </form>
             </div>
-            <div id="mensajeExito" class="mensaje exito">
-                ✅ ¡Todo listo! El contenido se está enviando a tus canales
-            </div>
-            <div id="mensajeError" class="mensaje error">
-                ❌ Ocurrió un error, revisá los datos e intentá de nuevo
-            </div>
+
+            <div id="resultado" class="resultado"></div>
+        </main>
+    </div>
+
+    <!-- 🍯 PUBLICIDAD -->
+    <div class="publicidad">
+        <div class="avatar-placeholder">
+            <span>🤖</span>
+        </div>
+        <div class="texto-publi">
+            <p class="titulo-publi">Powered by Dola AI</p>
+            <p class="subtitulo-publi">Asistencia Técnica y Desarrollo</p>
         </div>
     </div>
 
-    <script>
-        // --------------------------
-        // ELEMENTOS DEL HTML
-        // --------------------------
-        // Para subir archivos
-        const inputTitulo = document.getElementById('titulo');
-        const inputVideo = document.getElementById('video');
-        const textoAyuda = document.getElementById('textoAyuda');
-        const nombreArchivo = document.getElementById('nombreArchivo');
-        const areaSubida = document.getElementById('areaSubida');
-        const barraSubidaContenedor = document.getElementById('barraSubidaContenedor');
-        const barraSubida = document.getElementById('barraSubida');
-        const porcentajeSubida = document.getElementById('porcentajeSubida');
-
-        // Para procesar enlaces
-        const inputEnlace = document.getElementById('enlace');
-        const barraDescargaContenedor = document.getElementById('barraDescargaContenedor');
-        const barraDescarga = document.getElementById('barraDescarga');
-        const porcentajeDescarga = document.getElementById('porcentajeDescarga');
-
-        // Mensajes
-        const mensajeAlerta = document.getElementById('mensajeAlerta');
-        const mensajeProcesando = document.getElementById('mensajeProcesando');
-        const mensajeExito = document.getElementById('mensajeExito');
-        const mensajeError = document.getElementById('mensajeError');
-
-        // --------------------------
-        // FUNCIONES AUXILIARES
-        // --------------------------
-        // Ocultar todos los mensajes
-        function ocultarTodosLosMensajes() {
-            mensajeAlerta.style.display = 'none';
-            mensajeProcesando.style.display = 'none';
-            mensajeExito.style.display = 'none';
-            mensajeError.style.display = 'none';
-        }
-
-        // Mostrar solo el mensaje que corresponda
-        function mostrarMensaje(mensaje) {
-            ocultarTodosLosMensajes();
-            mensaje.style.display = 'block';
-        }
-
-        // Reiniciar barra de progreso
-        function reiniciarBarra(barraContenedor, barraRelleno, textoPorcentaje) {
-            barraContenedor.style.display = 'none';
-            barraRelleno.style.width = '0%';
-            textoPorcentaje.textContent = '0%';
-        }
-
-        // --------------------------
-        // LÓGICA PARA SUBIR ARCHIVOS
-        // --------------------------
-        function verificarYProcesarArchivo() {
-            const tituloEscrito = inputTitulo.value.trim();
-            const archivoSeleccionado = inputVideo.files.length > 0;
-
-            // Si hay video pero NO hay título
-            if (archivoSeleccionado && !tituloEscrito) {
-                mostrarMensaje(mensajeAlerta);
-                return false;
-            }
-
-            // Si ya tenemos las dos cosas: ¡PROCESAR AUTOMÁTICAMENTE!
-            if (tituloEscrito && archivoSeleccionado) {
-                mostrarMensaje(mensajeProcesando);
-                reiniciarBarra(barraSubidaContenedor, barraSubida, porcentajeSubida);
-                barraSubidaContenedor.style.display = 'block';
-
-                // Preparamos los datos para enviar
-                const formData = new FormData();
-                formData.append('titulo', tituloEscrito);
-                // 👇 CAMBIO AQUÍ: ahora el nombre coincide con lo que espera el servidor
-                formData.append('archivo_video', inputVideo.files[0]);
-
-                // Creamos la petición para poder ver el progreso
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', '/procesar', true);
-
-                // Actualizar barra mientras se sube
-                xhr.upload.addEventListener('progress', (e) => {
-                    if (e.lengthComputable) {
-                        const porcentaje = Math.round((e.loaded / e.total) * 100);
-                        barraSubida.style.width = `${porcentaje}%`;
-                        porcentajeSubida.textContent = `${porcentaje}%`;
-                    }
-                });
-
-                // Cuando termina de subir
-                xhr.onload = function() {
-                    reiniciarBarra(barraSubidaContenedor, barraSubida, porcentajeSubida);
-
-                    if (xhr.status === 200) {
-                        const datos = JSON.parse(xhr.responseText);
-                        if (datos.status === 'ok') {
-                            mostrarMensaje(mensajeExito);
-                            // Limpiamos todo después de unos segundos
-                            setTimeout(() => {
-                                inputTitulo.value = '';
-                                inputVideo.value = '';
-                                nombreArchivo.textContent = '';
-                                textoAyuda.style.display = 'block';
-                                ocultarTodosLosMensajes();
-                            }, 4500);
-                        } else {
-                            mostrarMensaje(mensajeError);
-                        }
-                    } else {
-                        mostrarMensaje(mensajeError);
-                    }
-                };
-
-                // Si hay error
-                xhr.onerror = function() {
-                    reiniciarBarra(barraSubidaContenedor, barraSubida, porcentajeSubida);
-                    mostrarMensaje(mensajeError);
-                };
-
-                // Enviamos el archivo
-                xhr.send(formData);
-
-                return true;
-            }
-
-            // Si falta alguno, no hacemos nada
-            ocultarTodosLosMensajes();
-            return false;
-        }
-
-        // Eventos para la sección de archivos
-        inputTitulo.addEventListener('input', verificarYProcesarArchivo);
-
-        inputVideo.addEventListener('change', () => {
-            if (inputVideo.files.length > 0) {
-                textoAyuda.style.display = 'none';
-                nombreArchivo.textContent = `📁 Archivo: ${inputVideo.files[0].name}`;
-            } else {
-                textoAyuda.style.display = 'block';
-                nombreArchivo.textContent = '';
-            }
-            verificarYProcesarArchivo();
-        });
-
-        // Efecto visual al arrastrar archivos
-        areaSubida.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            areaSubida.classList.add('activo');
-        });
-
-        areaSubida.addEventListener('dragleave', () => {
-            areaSubida.classList.remove('activo');
-        });
-
-        areaSubida.addEventListener('drop', (e) => {
-            e.preventDefault();
-            areaSubida.classList.remove('activo');
-            if (e.dataTransfer.files.length > 0) {
-                inputVideo.files = e.dataTransfer.files;
-                textoAyuda.style.display = 'none';
-                nombreArchivo.textContent = `📁 Archivo: ${e.dataTransfer.files[0].name}`;
-                verificarYProcesarArchivo();
-            }
-        });
-
-        // --------------------------
-        // LÓGICA PARA PROCESAR ENLACES
-        // --------------------------
-        function simularProgresoDescarga() {
-            // Como el progreso real de descarga está del lado del servidor, simulamos un progreso fluido
-            let progreso = 0;
-            const intervalo = setInterval(() => {
-                // Aumentamos de forma gradual, más lento al final
-                if (progreso < 30) {
-                    progreso += Math.random() * 8;
-                } else if (progreso < 70) {
-                    progreso += Math.random() * 4;
-                } else if (progreso < 90) {
-                    progreso += Math.random() * 1.5;
-                } else {
-                    progreso += 0.3;
-                }
-
-                // Redondeamos y limitamos a 99% hasta que termine todo
-                progreso = Math.min(Math.round(progreso), 99);
-                barraDescarga.style.width = `${progreso}%`;
-                porcentajeDescarga.textContent = `${progreso}%`;
-            }, 300);
-
-            return intervalo;
-        }
-
-        function verificarYProcesarEnlace() {
-            const enlaceIngresado = inputEnlace.value.trim();
-
-            // Si el campo está vacío, no hacemos nada
-            if (enlaceIngresado === '') {
-                ocultarTodosLosMensajes();
-                return;
-            }
-
-            // Si hay enlace, empezamos a procesar
-            mostrarMensaje(mensajeProcesando);
-            reiniciarBarra(barraDescargaContenedor, barraDescarga, porcentajeDescarga);
-            barraDescargaContenedor.style.display = 'block';
-
-            // Iniciamos la simulación de progreso
-            const intervaloProgreso = simularProgresoDescarga();
-
-            // Enviamos el enlace al servidor
-            fetch('/procesar-enlace', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ enlace: enlaceIngresado })
-            })
-            .then(respuesta => respuesta.json())
-            .then(datos => {
-                clearInterval(intervaloProgreso);
-
-                // Ponemos la barra al 100% al terminar
-                barraDescarga.style.width = `100%`;
-                porcentajeDescarga.textContent = `100%`;
-
-                setTimeout(() => {
-                    reiniciarBarra(barraDescargaContenedor, barraDescarga, porcentajeDescarga);
-
-                    if (datos.status === 'ok') {
-                        mostrarMensaje(mensajeExito);
-                        // Limpiamos el campo después de terminar
-                        setTimeout(() => {
-                            inputEnlace.value = '';
-                            ocultarTodosLosMensajes();
-                        }, 4500);
-                    } else {
-                        mostrarMensaje(mensajeError);
-                    }
-                }, 800);
-            })
-            .catch(() => {
-                clearInterval(intervaloProgreso);
-                reiniciarBarra(barraDescargaContenedor, barraDescarga, porcentajeDescarga);
-                mostrarMensaje(mensajeError);
-            });
-        }
-
-        // Evento para que se procese automáticamente al terminar de escribir el enlace
-        let temporizadorEnlace;
-        inputEnlace.addEventListener('input', () => {
-            // Esperamos 1.5 segundos después de que dejes de escribir para procesar
-            clearTimeout(temporizadorEnlace);
-            temporizadorEnlace = setTimeout(verificarYProcesarEnlace, 1500);
-        });
-
-    </script>
+    <!-- 🎮 CONTROLADOR EXTERNO -->
+    <script src="/index.js"></script>
 </body>
 </html>
