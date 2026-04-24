@@ -39,11 +39,19 @@ const app = express();
 const PUERTO = 3000;
 
 // ==============================================
-// CONFIGURACIÓN GENERAL
+// CONFIGURACIÓN GENERAL - ADAPTADA A VIDEOS LARGOS
 // ==============================================
-app.use(express.json({ limit: '500mb' }));
-app.use(express.urlencoded({ extended: true, limit: '500mb' }));
+// 🚀 LÍMITE AUMENTADO A 10 GB - Suficiente para videos de hasta 12-15 horas
+app.use(express.json({ limit: '10000mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10000mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ⏱️ TIEMPOS DE ESPERA AMPLIADOS - Porque procesar videos largos tarda más
+app.use((req, res, next) => {
+    req.setTimeout(3600000); // 1 hora de espera máxima por solicitud
+    res.setTimeout(3600000);
+    next();
+});
 
 // Capturamos errores generales
 app.use((err, req, res, next) => {
@@ -51,7 +59,7 @@ app.use((err, req, res, next) => {
     res.json({ status: 'error', mensaje: '❌ Ocurrió un error en el servidor' });
 });
 
-// Creamos las carpetas si no existen (usando los nombres de tu configuración)
+// Creamos las carpetas si no existen
 const carpetas = [
     config.ORIGINAL_FOLDER,
     config.TEMP_FOLDER,
@@ -100,39 +108,54 @@ const filtroArchivos = (req, file, cb) => {
     }
 };
 
+// 🚀 LÍMITE DE TAMAÑO A 10 GB
 const subirArchivo = multer({
     storage: almacenamientoArchivos,
     fileFilter: filtroArchivos,
-    limits: { fileSize: 500 * 1024 * 1024 }
+    limits: { 
+        fileSize: 10 * 1024 * 1024 * 1024, // 10 GB
+        parts: 100,
+        headerPairs: 2000
+    }
 }).single('video');
 
 // ==============================================
 // RUTA PARA PROCESAR ARCHIVOS SUBIDOS
 // ==============================================
 app.post('/procesar', (req, res) => {
-    console.log("\n📥 RECIBIDA SOLICITUD DE PROCESAR ARCHIVO");
+    console.log("\n" + "=".repeat(70));
+    console.log("📥 RECIBIDA SOLICITUD DE PROCESAR ARCHIVO");
+    console.log("⏳ Tené paciencia: los videos largos pueden tardar varios minutos en procesarse");
+    console.log("=".repeat(70));
     
     subirArchivo(req, res, async (err) => {
         try {
             // Error al subir el archivo
             if (err) {
                 console.error("❌ ERROR AL SUBIR EL ARCHIVO:", err.message);
+                let mensajeError = `❌ Error al subir: ${err.message}`;
+                
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    mensajeError = `❌ El archivo es demasiado grande. El límite actual es de 10 GB. Si necesitás más, decime y lo ampliamos.`;
+                }
+                
                 return res.json({
                     status: 'error',
-                    mensaje: `❌ Error al subir: ${err.message}`
+                    mensaje: mensajeError
                 });
             }
 
             // Verificamos que tengamos los datos
-            console.log("📋 Datos recibidos:");
+            console.log("\n📋 DATOS RECIBIDOS:");
             console.log("Título:", req.body?.titulo);
             console.log("Archivo:", req.file?.filename);
+            console.log("Tamaño del archivo:", (req.file.size / (1024 * 1024 * 1024)).toFixed(2), "GB");
 
             if (!req.body?.titulo || !req.file) {
                 console.error("❌ Faltan datos: título o archivo no enviados");
                 return res.json({
                     status: 'error',
-                    mensaje: '❌ Debes completar el título y seleccionar el archivo'
+                    mensaje: '❌ Debés completar el título y seleccionar el archivo'
                 });
             }
 
@@ -150,11 +173,14 @@ app.post('/procesar', (req, res) => {
             }
 
             // Obtenemos duración del video
-            console.log("⏱️ Obteniendo duración del video...");
+            console.log("\n⏱️ LEYENDO DURACIÓN DEL VIDEO...");
             let duracionTotal;
             try {
                 duracionTotal = await obtenerDuracionVideo(rutaArchivoOriginal);
-                console.log(`✅ Duración obtenida: ${Math.round(duracionTotal)} segundos`);
+                const horas = Math.floor(duracionTotal / 3600);
+                const minutos = Math.floor((duracionTotal % 3600) / 60);
+                const segundos = Math.floor(duracionTotal % 60);
+                console.log(`✅ Duración obtenida: ${horas}h ${minutos}m ${segundos}s`);
             } catch (error) {
                 console.error("❌ No se pudo leer la duración:", error.message);
                 return res.json({
@@ -164,18 +190,19 @@ app.post('/procesar', (req, res) => {
             }
 
             const duracionSegmento = config.CLIP_DURATION || 60;
-            const cantidadPartes = Math.floor(duracionTotal / duracionSegmento) + 1;
+            const cantidadPartes = Math.ceil(duracionTotal / duracionSegmento);
             console.log(`✂️ Se generarán ${cantidadPartes} partes de ${duracionSegmento} segundos cada una`);
+            console.log("⏳ Este paso puede tardar bastante dependiendo de la duración del video...");
 
             // Procesamos cada parte
             const listaPartes = [];
             for (let numeroParte = 1; numeroParte <= cantidadPartes; numeroParte++) {
-                console.log(`🔄 Procesando parte ${numeroParte}/${cantidadPartes}`);
+                console.log(`\n🔄 PROCESANDO PARTE ${numeroParte}/${cantidadPartes}`);
                 
                 let rutaParte;
                 try {
                     rutaParte = await extraerSegmento(rutaArchivoOriginal, numeroParte, tituloOriginal);
-                    console.log(`✅ Parte ${numeroParte} generada: ${rutaParte}`);
+                    console.log(`✅ Parte ${numeroParte} generada correctamente`);
                 } catch (error) {
                     console.error(`❌ Error al generar la parte ${numeroParte}:`, error.message);
                     continue;
@@ -197,10 +224,10 @@ app.post('/procesar', (req, res) => {
                 });
             }
 
-            console.log(`✅ Total de partes válidas generadas: ${listaPartes.length}`);
+            console.log(`\n✅ TOTAL DE PARTES VÁLIDAS GENERADAS: ${listaPartes.length}`);
 
             // Enviamos a Telegram
-            console.log("📤 Enviando partes a los canales...");
+            console.log("\n📤 ENVIANDO PARTES A LOS CANALES DE TELEGRAM...");
             for (const parte of listaPartes) {
                 const mensajeTelegram = `🎬 <b>${tituloOriginal}</b>
 📌 <b>Parte:</b> ${parte.numero} de ${listaPartes.length}
@@ -220,16 +247,20 @@ app.post('/procesar', (req, res) => {
                     console.log(`🗑️ Parte ${parte.numero} eliminada del disco`);
                 }
 
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                // ⏱️ Pausa más larga para no saturar la API de Telegram
+                await new Promise(resolve => setTimeout(resolve, 3000));
             }
 
             // Eliminamos archivo original
             if (config.BORRAR_ARCHIVOS_DESPUES !== false && fs.existsSync(rutaArchivoOriginal)) {
                 fs.unlinkSync(rutaArchivoOriginal);
-                console.log("🗑️ Archivo original eliminado");
+                console.log("🗑️ Archivo original eliminado del disco");
             }
 
-            console.log("\n✅ ¡PROCESO FINALIZADO CON ÉXITO!");
+            console.log("\n" + "=".repeat(70));
+            console.log("✅ ¡PROCESO FINALIZADO CON ÉXITO!");
+            console.log("=".repeat(70) + "\n");
+
             return res.json({
                 status: 'ok',
                 mensaje: '✅ El archivo fue procesado y enviado correctamente'
@@ -249,7 +280,11 @@ app.post('/procesar', (req, res) => {
 // RUTA PARA PROCESAR ENLACES
 // ==============================================
 app.post('/procesar-enlace', async (req, res) => {
-    console.log("\n📥 RECIBIDA SOLICITUD DE PROCESAR ENLACE");
+    console.log("\n" + "=".repeat(70));
+    console.log("📥 RECIBIDA SOLICITUD DE PROCESAR ENLACE");
+    console.log("⏳ Los videos largos pueden tardar varios minutos en descargarse y procesarse");
+    console.log("=".repeat(70));
+    
     try {
         const { enlace } = req.body;
         console.log("🔗 Enlace recibido:", enlace);
@@ -258,15 +293,15 @@ app.post('/procesar-enlace', async (req, res) => {
             console.error("❌ Enlace vacío");
             return res.json({
                 status: 'error',
-                mensaje: '❌ Debes ingresar un enlace válido'
+                mensaje: '❌ Debés ingresar un enlace válido'
             });
         }
 
-        console.log("⏳ Iniciando procesamiento del enlace...");
+        console.log("⏳ Iniciando descarga y procesamiento...");
         const resultado = await procesarEnlace(enlace.trim());
 
         if (resultado) {
-            console.log("✅ Enlace procesado correctamente");
+            console.log("\n✅ ¡ENLACE PROCESADO CON ÉXITO!");
             return res.json({
                 status: 'ok',
                 mensaje: '✅ El enlace fue procesado y enviado correctamente'
@@ -297,7 +332,7 @@ function obtenerDuracionVideo(rutaArchivo) {
             '-show_entries', 'format=duration',
             '-of', 'default=noprint_wrappers=1:nokey=1',
             rutaArchivo
-        ], (error, stdout) => {
+        ], { timeout: 300000 }, (error, stdout) => { // 5 minutos de espera máxima
             if (error || !stdout || isNaN(parseFloat(stdout))) {
                 return reject(new Error("No se pudo leer la duración del video"));
             }
@@ -310,10 +345,11 @@ function obtenerDuracionVideo(rutaArchivo) {
 // INICIAR SERVIDOR
 // ==============================================
 app.listen(PUERTO, () => {
-    console.log("\n" + "=".repeat(60));
+    console.log("\n" + "=".repeat(70));
     console.log(`✅ SERVIDOR INICIADO CORRECTAMENTE`);
-    console.log(`🌐 Dirección: http://localhost:${PUERTO}`);
-    console.log("=".repeat(60) + "\n");
+    console.log(`🌐 Dirección: http://localhost:3000`);
+    console.log(`📏 Límite de archivos: 10 GB`);
+    console.log("=".repeat(70) + "\n");
 });
 
 // Capturamos cualquier error
