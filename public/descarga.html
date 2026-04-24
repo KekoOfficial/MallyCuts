@@ -9,35 +9,39 @@
 <body>
     <div class="container">
         <header>
-            <h1>📥 MÓDULO DESCARGAS</h1>
+            <div class="logo">📥</div>
+            <h1>MODULO DESCARGAS</h1>
             <p>Extrae videos desde cualquier enlace</p>
         </header>
 
         <main>
             <form id="formularioDescarga">
-                <div class="input-box">
-                    <label>🔗 Pegar Enlace / URL</label>
+                
+                <div class="form-group">
+                    <label for="urlInput">🔗 Enlace / URL</label>
                     <input type="url" id="urlInput" placeholder="https://..." required>
                 </div>
 
-                <div class="input-box">
-                    <label>📝 Nombre del Archivo</label>
-                    <input type="text" id="nombreInput" placeholder="Video_Parte_1" required>
+                <div class="form-group">
+                    <label for="nombreInput">📝 Nombre del Video</label>
+                    <input type="text" id="nombreInput" placeholder="Ej: Serie Nueva" required>
                 </div>
 
                 <div class="opciones">
-                    <h3>⚙️ Opciones</h3>
-                    <label>
+                    <h3>⚙️ Opciones de Procesamiento</h3>
+                    <label class="check-label">
                         <input type="checkbox" id="cortarCheck" checked>
-                        Cortar en partes de 2 minutos
+                        <span>Cortar en partes de 2 minutos</span>
                     </label>
-                    <label>
+                    <label class="check-label">
                         <input type="checkbox" id="velocidadCheck" checked>
-                        Aplicar velocidad 1.2x
+                        <span>Aplicar velocidad 1.2x</span>
                     </label>
                 </div>
 
-                <button type="submit" class="btn-descargar">🚀 INICIAR DESCARGA</button>
+                <button type="submit" class="btn-submit">
+                    🚀 INICIAR DESCARGA
+                </button>
             </form>
 
             <div id="estado" class="estado">
