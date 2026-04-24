@@ -1,66 +1,71 @@
 // ✂️ MÓDULO DE CORTE Y PROCESAMIENTO DE VIDEOS
-// Versión optimizada y adaptada a la configuración actual
+// Versión corregida - Compatible con config.js actual
 
 const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
 const util = require('util');
 
-// Importamos módulos internos
+// Importamos módulos
 const log = require('../js/logger');
 const config = require('../config');
 
-// Convertimos exec a promesa para poder usar async/await
+// Convertimos exec a promesa
 const ejecutarComando = util.promisify(exec);
 
 /**
- * Extrae un segmento específico del video original
- * @param {string} rutaOriginal - Ruta completa del archivo fuente
- * @param {number} numeroParte - Número de la parte a generar
- * @param {string} tituloVideo - Título para nombrar el archivo
- * @returns {Promise<string|null>} Ruta del archivo generado o null si falla
+ * Extrae un segmento del video original
  */
 async function extraerSegmento(rutaOriginal, numeroParte, tituloVideo) {
     try {
-        // Verificamos que el archivo original exista
+        // Verificar que el archivo existe
         if (!fs.existsSync(rutaOriginal)) {
             throw new Error(`El archivo original no existe: ${rutaOriginal}`);
         }
 
-        // Tomamos los parámetros de la configuración
+        // ==============================================
+        // 💡 SOLUCIÓN: Definimos la ruta de salida aquí
+        // ==============================================
+        // Usamos TEMP_FOLDER que existe en tu config.js
+        const carpetaSalida = config.TEMP_FOLDER;
+        
+        // Verificamos que la carpeta sea un string válido
+        if (!carpetaSalida || typeof carpetaSalida !== 'string') {
+            throw new Error("Ruta de carpeta temporal no definida correctamente");
+        }
+
+        // Tomamos parámetros
         const duracionPorParte = config.DURACION_POR_PARTE || 60;
         const velocidad = config.VELOCIDAD_VIDEO || 1.0;
 
-        // Calculamos el punto de inicio
+        // Calculamos tiempos
         const tiempoInicio = (numeroParte - 1) * duracionPorParte;
 
-        // Creamos el nombre y ruta de salida (usamos TEMP_FOLDER de tu config)
+        // Generamos nombre y ruta completa
         const nombreLimpio = tituloVideo.replace(/[<>:"/\\|?*\n\r\t]/g, ' ').trim();
         const nombreArchivoSalida = `${nombreLimpio}_parte_${numeroParte}.mp4`;
-        
-        // ✅ IMPORTANTE: Usamos la variable correcta de tu configuración
-        const rutaArchivoSalida = path.join(config.TEMP_FOLDER, nombreArchivoSalida);
+        const rutaArchivoSalida = path.join(carpetaSalida, nombreArchivoSalida);
 
+        // Logs
         log.detalle(`Generando parte ${numeroParte}: desde el segundo ${tiempoInicio} por ${duracionPorParte} segundos`);
         log.detalle(`Archivo de salida: ${rutaArchivoSalida}`);
 
-        // Comando FFmpeg optimizado
-        // -ss inicio, -t duración
-        // -filter:v y -filter:a para ajustar velocidad
-        // -preset fast para rendimiento bueno en Termux
+        // ==============================================
+        // COMANDO FFMPEG
+        // ==============================================
         const comando = `ffmpeg -y -i "${rutaOriginal}" -ss ${tiempoInicio} -t ${duracionPorParte} ` +
             `-filter:v "setpts=PTS/${velocidad}" ` +
             `-filter:a "atempo=${velocidad}" ` +
             `-c:v libx264 -crf 23 -preset fast -c:a aac -b:a 128k "${rutaArchivoSalida}"`;
 
-        // Ejecutamos el proceso
-        const { stderr } = await ejecutarComando(comando);
+        // Ejecutar
+        await ejecutarComando(comando);
 
-        // Verificamos que el archivo se generó bien
+        // Verificar resultado
         if (fs.existsSync(rutaArchivoSalida) && fs.statSync(rutaArchivoSalida).size > 1024) {
             return rutaArchivoSalida;
         } else {
-            throw new Error('El archivo generado es demasiado pequeño o está vacío');
+            throw new Error('El archivo generado es vacío o incorrecto');
         }
 
     } catch (error) {
