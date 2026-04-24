@@ -3,6 +3,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const log = require('../js/logger');
 const { execFile } = require('child_process');
 
 // Cargamos configuración
