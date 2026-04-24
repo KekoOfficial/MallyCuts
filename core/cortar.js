@@ -1,100 +1,67 @@
-// 🎥 MÓDULO DE CORTE Y PROCESAMIENTO DE VIDEOS
-// Se encarga de dividir el video en partes, aplicar velocidad y agregar la marca de agua
+// ✂️ MÓDULO DE CORTE Y PROCESAMIENTO DE VIDEOS
+// Divide el video en partes, ajusta velocidad y genera archivos finales
 
-const fs = require('fs');
 const path = require('path');
-const { execFile } = require('child_process');
-const config = require('../config');
+const fs = require('fs');
+const { exec } = require('child_process');
+const util = require('util');
 const log = require('../js/logger');
+const config = require('../config');
+
+// Convertimos exec a promesa para usar async/await
+const ejecutarComando = util.promisify(exec);
 
 /**
- * Extrae un segmento del video completo, le aplica los ajustes y guarda el archivo
- * @param {string} rutaVideoOriginal - Ruta completa del archivo de video que se va a procesar
- * @param {number} numeroParte - Número de la parte que se está generando
- * @param {string} tituloOriginal - Título del video para referencia
- * @returns {Promise<string|null>} Retorna la ruta del archivo generado si salió bien, o null si falló
+ * Extrae un segmento del video original y lo procesa
+ * @param {string} rutaOriginal - Ruta completa del archivo original
+ * @param {number} numeroParte - Número de la parte que se va a generar
+ * @param {string} tituloVideo - Título del video para nombrar los archivos
+ * @param {number} duracionParte - Duración en segundos que tendrá cada parte
+ * @param {number} velocidad - Velocidad de reproducción configurada
+ * @returns {Promise<string|null>} Ruta del archivo generado o null si hubo error
  */
-async function extraerSegmento(rutaVideoOriginal, numeroParte, tituloOriginal) {
-    return new Promise(async (resolve, reject) => {
-        try {
-            // Calculamos el punto de inicio y la duración de esta parte
-            const segundoInicio = (numeroParte - 1) * config.CLIP_DURATION;
-            const duracionParte = config.CLIP_DURATION;
-
-            // Definimos el nombre y ruta donde se va a guardar la parte generada
-            const nombreArchivoSalida = `parte_${numeroParte}.mp4`;
-            const rutaArchivoSalida = path.join(config.TEMP_FOLDER, nombreArchivoSalida);
-
-            log.detalle(`Procesando parte ${numeroParte} | Inicio: ${segundoInicio}s | Duración: ${duracionParte}s`);
-
-            // 👇 COMANDO CORREGIDO Y COMPLETO DE FFMPEG
-            // Separamos filtros de video y filtros de audio para evitar errores
-            const argumentosFFmpeg = [
-                '-y', // Sobrescribir archivos sin preguntar
-                '-ss', segundoInicio.toString(), // Punto de inicio del corte
-                '-i', rutaVideoOriginal, // Archivo de video original
-                '-t', duracionParte.toString(), // Duración de la parte
-
-                // 🎥 FILTROS SOLO PARA VIDEO
-                '-vf', `
-                    setpts=(1/${config.VELOCIDAD_PREDETERMINADA})*PTS,
-                    drawtext=
-                        text='${config.TEXTO_MARCA_PREDETERMINADA}':
-                        x=15:
-                        y=15:
-                        fontsize=22:
-                        fontcolor=white@0.8:
-                        fontfile=/system/fonts/Roboto-Regular.ttf:
-                        box=1:
-                        boxcolor=black@0.3:
-                        boxborderw=3
-                `.replace(/\s+/g, ' ').trim(), // Limpiamos espacios para que funcione bien
-
-                // 🔊 FILTROS SOLO PARA AUDIO
-                '-af', `atempo=${config.VELOCIDAD_PREDETERMINADA}`,
-
-                // ⚙️ AJUSTES DE CALIDAD Y COMPATIBILIDAD
-                '-c:v', 'libx264',       // Codificador de video
-                '-c:a', 'aac',           // Codificador de audio
-                '-b:v', '2M',            // Calidad de video (2 Mbps, podés subirlo si querés mejor calidad)
-                '-b:a', '128k',          // Calidad de audio
-                '-preset', 'fast',       // Velocidad de procesamiento
-                '-crf', '23',            // Nivel de compresión (menor número = mayor calidad)
-                '-pix_fmt', 'yuv420p',   // Formato compatible con todos los reproductores
-                '-avoid_negative_ts', 'make_zero',
-                '-movflags', '+faststart',
-                '-hide_banner',          // Ocultar mensajes innecesarios de FFmpeg
-                '-loglevel', 'error',    // Solo mostrar errores importantes
-                rutaArchivoSalida         // Ruta final donde se guarda el archivo
-            ];
-
-            // Ejecutamos el comando de procesamiento
-            execFile('ffmpeg', argumentosFFmpeg, (error, stdout, stderr) => {
-                // Si hubo un error al ejecutar el comando
-                if (error) {
-                    log.error(`No se pudo generar la parte ${numeroParte}`, error);
-                    return reject(null);
-                }
-
-                // Verificamos que el archivo se haya creado correctamente
-                if (fs.existsSync(rutaArchivoSalida)) {
-                    const tamañoArchivo = (fs.statSync(rutaArchivoSalida).size / (1024 * 1024)).toFixed(2);
-                    log.exito(`Parte ${numeroParte} generada | Tamaño: ${tamañoArchivo} MB`);
-                    resolve(rutaArchivoSalida);
-                } else {
-                    log.error(`El archivo de la parte ${numeroParte} no se creó`);
-                    reject(null);
-                }
-            });
-
-        } catch (errorGeneral) {
-            log.error(`Error inesperado al procesar la parte ${numeroParte}`, errorGeneral);
-            reject(null);
+async function extraerSegmento(rutaOriginal, numeroParte, tituloVideo, duracionParte, velocidad) {
+    try {
+        // Verificamos que el archivo original exista
+        if (!fs.existsSync(rutaOriginal)) {
+            throw new Error(`El archivo original no existe: ${rutaOriginal}`);
         }
-    });
+
+        // Calculamos el tiempo de inicio del segmento
+        const tiempoInicio = (numeroParte - 1) * duracionParte;
+
+        // Creamos el nombre y ruta para el archivo resultante
+        const nombreArchivoSalida = `${tituloVideo.replace(/[<>:"/\\|?*\n\r\t]/g, ' ')}_parte_${numeroParte}.mp4`;
+        const rutaArchivoSalida = path.join(config.TEMP_FOLDER || config.TMP_FOLDER || config.TEMPORAL_FOLDER || config.TEMP_FOLDER, nombreArchivoSalida);
+
+        log.detalle(`Generando parte ${numeroParte}: desde el segundo ${tiempoInicio} por ${duracionParte} segundos`);
+        log.detalle(`Archivo de salida: ${rutaArchivoSalida}`);
+
+        // Comando FFmpeg para cortar y ajustar velocidad
+        // - Corte: -ss = tiempo inicio, -t = duración
+        // - Velocidad: atempo para audio, setpts para video
+        const comandoFFmpeg = `ffmpeg -y -i "${rutaOriginal}" -ss ${tiempoInicio} -t ${duracionParte} ` +
+            `-filter:v "setpts=PTS/${velocidad}" ` +
+            `-filter:a "atempo=${velocidad}" ` +
+            `-c:v libx264 -crf 23 -preset fast -c:a aac -b:a 192k "${rutaArchivoSalida}"`;
+
+        // Ejecutamos el comando
+        const { stdout, stderr } = await ejecutarComando(comandoFFmpeg);
+
+        // Verificamos que el archivo generado sea válido
+        if (fs.existsSync(rutaArchivoSalida) && fs.statSync(rutaArchivoSalida).size > 1024) {
+            log.detalle(`Parte ${numeroParte} generada correctamente`);
+            return rutaArchivoSalida;
+        } else {
+            throw new Error(`El archivo generado está vacío o dañado`);
+        }
+
+    } catch (error) {
+        log.error(`Error al generar la parte ${numeroParte}`, error);
+        return null;
+    }
 }
 
-// Exportamos la función para usarla en el resto del sistema
 module.exports = {
     extraerSegmento
 };
