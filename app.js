@@ -20,11 +20,11 @@ const PUERTO = config.PUERTO || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Carpeta pública para el HTML y CSS
+// Carpeta pública (HTML, CSS, JS)
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ==============================================
-// 📂 CARPETAS DE TRABAJO
+// 📂 CREAR CARPETAS SI NO EXISTEN
 // ==============================================
 const carpetas = [
     config.CARPETA_ENTRADA,
@@ -42,10 +42,10 @@ carpetas.forEach(carpeta => {
 // 🔌 CONEXIÓN DE ROUTERS
 // ==============================================
 
-// Ruta principal (El proceso completo)
+// Ruta principal del proceso completo
 app.use('/', require('./routes/archivos'));
 
-// Nuevos módulos separados
+// Módulos separados
 app.use('/telegram', require('./routes/telegram'));
 app.use('/cortar', require('./routes/cortar'));
 app.use('/upload', require('./routes/upload'));
