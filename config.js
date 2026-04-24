@@ -42,7 +42,7 @@ const PARAMETROS_SISTEMA = {
     TAMANIO_MAXIMO_POR_ARCHIVO: 50 * 1024 * 1024, // Límite API Telegram: 50MB
 
     // Ajustes de edición de video
-    VELOCIDAD_VIDEO: 1.3,
+    VELOCIDAD_VIDEO: 1.2,
     TEXTO_MARCA_AGUA: "EnseñaEn15",
 
     // Limpieza automática
