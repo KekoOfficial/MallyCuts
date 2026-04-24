@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MallyCuts</title>
+    <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+    <div class="contenedor-principal">
+        <!-- TÍTULO PRINCIPAL -->
+        <h1>MALLYCUTS</h1>
+
+        <!-- 📤 SECCIÓN 1: SUBIR ARCHIVO DE VIDEO -->
+        <div class="seccion">
+            <h2>📁 Subir archivo de video</h2>
+            <div class="caja-formulario">
+                <div class="campo">
+                    <label for="titulo">📝 Título del contenido</label>
+                    <input 
+                        type="text" 
+                        id="titulo" 
+                        placeholder="Escribí aquí el título..." 
+                        autocomplete="off"
+                    >
+                </div>
+
+                <div class="campo">
+                    <label for="video">📹 Seleccionar video</label>
+                    <div class="area-subida" id="areaSubida">
+                        <input type="file" id="video" accept="video/*">
+                        <p id="textoAyuda">Hacé clic o arrastrá el archivo aquí</p>
+                        <span id="nombreArchivo" class="nombre-archivo"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🔗 SECCIÓN 2: PROCESAR POR ENLACE -->
+        <div class="seccion">
+            <h2>🔗 Procesar por enlace</h2>
+            <div class="caja-formulario">
+                <div class="campo">
+                    <label for="enlace">🌐 Enlace del video</label>
+                    <input 
+                        type="url" 
+                        id="enlace" 
+                        placeholder="Ejemplo: https://www.tiktok.com/@usuario/video/123456789" 
+                        autocomplete="off"
+                    >
+                    <p class="texto-ayuda">Funciona con TikTok, YouTube, Instagram, Facebook y muchas plataformas más</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ZONA DE MENSAJES DE ESTADO -->
+        <div class="zona-mensajes">
+            <div id="mensajeAlerta" class="mensaje alerta">
+                ⚠️ Te falta poner el título primero
+            </div>
+            <div id="mensajeProcesando" class="mensaje procesando">
+                ⏳ PROCESANDO... Espere un momento por favor
+            </div>
+            <div id="mensajeExito" class="mensaje exito">
+                ✅ ¡Todo listo! El contenido se está enviando a tus canales
+            </div>
+            <div id="mensajeError" class="mensaje error">
+                ❌ Ocurrió un error, revisá los datos e intentá de nuevo
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --------------------------
+        // ELEMENTOS DEL HTML
+        // --------------------------
+        // Para subir archivos
+        const inputTitulo = document.getElementById('titulo');
+        const inputVideo = document.getElementById('video');
+        const textoAyuda = document.getElementById('textoAyuda');
+        const nombreArchivo = document.getElementById('nombreArchivo');
+        const areaSubida = document.getElementById('areaSubida');
+
+        // Para procesar enlaces
+        const inputEnlace = document.getElementById('enlace');
+
+        // Mensajes
+        const mensajeAlerta = document.getElementById('mensajeAlerta');
+        const mensajeProcesando = document.getElementById('mensajeProcesando');
+        const mensajeExito = document.getElementById('mensajeExito');
+        const mensajeError = document.getElementById('mensajeError');
+
+        // --------------------------
+        // FUNCIONES AUXILIARES
+        // --------------------------
+        // Ocultar todos los mensajes
+        function ocultarTodosLosMensajes() {
+            mensajeAlerta.style.display = 'none';
+            mensajeProcesando.style.display = 'none';
+            mensajeExito.style.display = 'none';
+            mensajeError.style.display = 'none';
+        }
+
+        // Mostrar solo el mensaje que corresponda
+        function mostrarMensaje(mensaje) {
+            ocultarTodosLosMensajes();
+            mensaje.style.display = 'block';
+        }
+
+        // --------------------------
+        // LÓGICA PARA SUBIR ARCHIVOS
+        // --------------------------
+        function verificarYProcesarArchivo() {
+            const tituloEscrito = inputTitulo.value.trim();
+            const archivoSeleccionado = inputVideo.files.length > 0;
+
+            // Si hay video pero NO hay título
+            if (archivoSeleccionado && !tituloEscrito) {
+                mostrarMensaje(mensajeAlerta);
+                return false;
+            }
+
+            // Si ya tenemos las dos cosas: ¡PROCESAR AUTOMÁTICAMENTE!
+            if (tituloEscrito && archivoSeleccionado) {
+                mostrarMensaje(mensajeProcesando);
+
+                // Preparamos los datos para enviar
+                const formData = new FormData();
+                formData.append('titulo', tituloEscrito);
+                formData.append('video', inputVideo.files[0]);
+
+                // Enviamos al servidor
+                fetch('/procesar', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(respuesta => respuesta.json())
+                .then(datos => {
+                    if (datos.status === 'ok') {
+                        mostrarMensaje(mensajeExito);
+                        // Limpiamos todo después de unos segundos
+                        setTimeout(() => {
+                            inputTitulo.value = '';
+                            inputVideo.value = '';
+                            nombreArchivo.textContent = '';
+                            textoAyuda.style.display = 'block';
+                            ocultarTodosLosMensajes();
+                        }, 4500);
+                    } else {
+                        mostrarMensaje(mensajeError);
+                    }
+                })
+                .catch(() => {
+                    mostrarMensaje(mensajeError);
+                });
+
+                return true;
+            }
+
+            // Si falta alguno, no hacemos nada
+            ocultarTodosLosMensajes();
+            return false;
+        }
+
+        // Eventos para la sección de archivos
+        inputTitulo.addEventListener('input', verificarYProcesarArchivo);
+
+        inputVideo.addEventListener('change', () => {
+            if (inputVideo.files.length > 0) {
+                textoAyuda.style.display = 'none';
+                nombreArchivo.textContent = `📁 Archivo: ${inputVideo.files[0].name}`;
+            } else {
+                textoAyuda.style.display = 'block';
+                nombreArchivo.textContent = '';
+            }
+            verificarYProcesarArchivo();
+        });
+
+        // Efecto visual al arrastrar archivos
+        areaSubida.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            areaSubida.classList.add('activo');
+        });
+
+        areaSubida.addEventListener('dragleave', () => {
+            areaSubida.classList.remove('activo');
+        });
+
+        areaSubida.addEventListener('drop', (e) => {
+            e.preventDefault();
+            areaSubida.classList.remove('activo');
+            if (e.dataTransfer.files.length > 0) {
+                inputVideo.files = e.dataTransfer.files;
+                textoAyuda.style.display = 'none';
+                nombreArchivo.textContent = `📁 Archivo: ${e.dataTransfer.files[0].name}`;
+                verificarYProcesarArchivo();
+            }
+        });
+
+        // --------------------------
+        // LÓGICA PARA PROCESAR ENLACES
+        // --------------------------
+        function verificarYProcesarEnlace() {
+            const enlaceIngresado = inputEnlace.value.trim();
+
+            // Si el campo está vacío, no hacemos nada
+            if (enlaceIngresado === '') {
+                ocultarTodosLosMensajes();
+                return;
+            }
+
+            // Si hay enlace, empezamos a procesar
+            mostrarMensaje(mensajeProcesando);
+
+            // Enviamos el enlace al servidor
+            fetch('/procesar-enlace', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ enlace: enlaceIngresado })
+            })
+            .then(respuesta => respuesta.json())
+            .then(datos => {
+                if (datos.status === 'ok') {
+                    mostrarMensaje(mensajeExito);
+                    // Limpiamos el campo después de terminar
+                    setTimeout(() => {
+                        inputEnlace.value = '';
+                        ocultarTodosLosMensajes();
+                    }, 4500);
+                } else {
+                    mostrarMensaje(mensajeError);
+                }
+            })
+            .catch(() => {
+                mostrarMensaje(mensajeError);
+            });
+        }
+
+        // Evento para que se procese automáticamente al terminar de escribir el enlace
+        let temporizadorEnlace;
+        inputEnlace.addEventListener('input', () => {
+            // Esperamos 1.5 segundos después de que dejes de escribir para procesar
+            clearTimeout(temporizadorEnlace);
+            temporizadorEnlace = setTimeout(verificarYProcesarEnlace, 1500);
+        });
+
+    </script>
+</body>
+</html>
