@@ -1,10 +1,7 @@
 // ==============================================
-// 📤 RUTA PRINCIPAL - MALLYCUTS
+// 📤 RUTA PRINCIPAL - MALLYCUTS (OPTIMIZADO)
 // ==============================================
-// FLUJO DE OPERACIÓN:
-// 1️⃣ EDICIÓN COMPLETA (Marca de agua + Velocidad)
-// 2️⃣ CORTE EN PARTES (120s)
-// 3️⃣ ENVÍO ORDENADO A TELEGRAM
+// NUEVO FLUJO: CORTE RÁPIDO + EDICIÓN POR PARTE
 // ==============================================
 
 const express = require('express');
@@ -17,8 +14,7 @@ const fs = require('fs');
 const log = require('../js/logger');
 const config = require('../config');
 const { obtenerDuracionVideo, formatoDuracion, archivoEsValido, obtenerTamanoArchivoMB } = require('./utilidades');
-const { procesarVideoCompleto } = require('../core/editar');
-const { extraerSegmento } = require('../core/cortar');
+const { extraerYEditarSegmento } = require('../core/cortar'); // <-- NUEVA FUNCIÓN
 const { enviarADosCanales } = require('../core/enviar');
 
 // ==============================================
@@ -74,8 +70,8 @@ const upload = multer({
 router.post('/procesar', (req, res) => {
     log.separador();
     log.info('📥 NUEVA SOLICITUD DE PROCESAMIENTO');
-    log.aviso('Modo: EDICIÓN GLOBAL -> CORTE -> ENVÍO');
-    log.aviso('Los videos largos pueden tardar varios minutos. Tené paciencia.');
+    log.aviso('Modo: CORTE RÁPIDO + EDICIÓN POR PARTES');
+    log.aviso('Los resultados saldrán mucho más rápido!');
 
     upload(req, res, async function (err) {
         try {
@@ -108,32 +104,14 @@ router.post('/procesar', (req, res) => {
             const tituloLimpio = req.body.titulo.replace(/[<>:"/\\|?*\n\r\t]/g, ' ').trim();
 
             // ==============================================
-            // 🎬 ETAPA 1: EDICIÓN DEL VIDEO COMPLETO
+            // 📏 ETAPA: ANÁLISIS Y PROCESO POR PARTES
             // ==============================================
             log.separador();
-            log.info('🎬 [1/3] INICIANDO EDICIÓN GLOBAL');
+            log.info('✂️ INICIANDO CORTE Y EDICIÓN');
             log.separador();
 
-            const rutaEditada = await procesarVideoCompleto(rutaOriginal, tituloLimpio);
-            if (!rutaEditada) {
-                throw new Error("El proceso de edición falló. No se generó el archivo editado.");
-            }
-
-            // Limpieza: Eliminar archivo original sin editar
-            if (fs.existsSync(rutaOriginal)) {
-                fs.unlinkSync(rutaOriginal);
-                log.detalle('🗑️ Archivo original eliminado (ocupaba espacio innecesario)');
-            }
-
-            // ==============================================
-            // 📏 ETAPA 2: ANÁLISIS Y CORTE
-            // ==============================================
-            log.separador();
-            log.info('✂️ [2/3] INICIANDO DIVISIÓN EN PARTES');
-            log.separador();
-
-            // Obtener duración del video YA EDITADO
-            const duracionTotal = await obtenerDuracionVideo(rutaEditada);
+            // Obtener duración total
+            const duracionTotal = await obtenerDuracionVideo(rutaOriginal);
             log.exito(`Duración total del video: ${formatoDuracion(duracionTotal)}`);
 
             // Calcular cantidad de partes
@@ -143,13 +121,14 @@ router.post('/procesar', (req, res) => {
 
             const partesGeneradas = [];
 
-            // Bucle de corte
+            // Bucle principal: Cortar y Editar al mismo tiempo
             for (let i = 1; i <= cantidadPartes; i++) {
                 log.info(`\n⚙️ Procesando parte ${i} de ${cantidadPartes}`);
 
                 try {
-                    const rutaParte = await extraerSegmento(
-                        rutaEditada,
+                    // 👇 ESTA FUNCIÓN HACE TODO: CORTA + PONE VELOCIDAD + PONE MARCA
+                    const rutaParte = await extraerYEditarSegmento(
+                        rutaOriginal,
                         i,
                         tituloLimpio
                     );
@@ -174,19 +153,19 @@ router.post('/procesar', (req, res) => {
                 throw new Error('No se pudo generar ninguna parte válida del video.');
             }
 
-            log.exito(`✅ División completada. Generadas ${partesGeneradas.length} partes.`);
+            log.exito(`✅ Proceso completado. Generadas ${partesGeneradas.length} partes.`);
 
-            // Limpieza: Eliminar archivo editado completo
-            if (fs.existsSync(rutaEditada)) {
-                fs.unlinkSync(rutaEditada);
-                log.detalle('🗑️ Archivo editado completo eliminado');
+            // Limpieza: Eliminar archivo original grande
+            if (fs.existsSync(rutaOriginal)) {
+                fs.unlinkSync(rutaOriginal);
+                log.detalle('🗑️ Archivo original eliminado');
             }
 
             // ==============================================
-            // 📤 ETAPA 3: ENVÍO A TELEGRAM
+            // 📤 ETAPA: ENVÍO A TELEGRAM
             // ==============================================
             log.separador();
-            log.info('📤 [3/3] INICIANDO ENVÍO A CANALES');
+            log.info('📤 INICIANDO ENVÍO A CANALES');
             log.separador();
 
             // Bucle de envío
@@ -211,7 +190,7 @@ router.post('/procesar', (req, res) => {
                     log.error(`Error al enviar parte ${parte.numero}`, error);
                 }
 
-                // Pausa técnica para estabilidad
+                // Pausa técnica
                 await new Promise(resolve => setTimeout(resolve, 3000));
             }
 
@@ -224,7 +203,7 @@ router.post('/procesar', (req, res) => {
 
             return res.json({
                 status: 'ok',
-                mensaje: `¡Listo! Video editado, cortado y enviado en ${partesGeneradas.length} partes.`
+                mensaje: `¡Listo! Video procesado y enviado en ${partesGeneradas.length} partes.`
             });
 
         } catch (errorGeneral) {
