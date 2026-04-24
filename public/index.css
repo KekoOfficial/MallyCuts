@@ -422,3 +422,29 @@ input[type="url"]::placeholder {
 
     .area-subida {
         padding: 50px 35
+    min-height: 150px;
+    border-radius: 15px;
+}
+
+.texto-ayuda, #textoAyuda, .nombre-archivo {
+    font-size: 1.15rem;
+}
+
+.barra-progreso-fondo {
+    height: 18px;
+    border-radius: 12px;
+}
+
+.barra-progreso-relleno {
+    border-radius: 12px;
+}
+
+.mensaje {
+    font-size: 1.15rem;
+    padding: 20px 25px;
+}
+
+.texto-progreso {
+    font-size: 1.1rem;
+}
+
