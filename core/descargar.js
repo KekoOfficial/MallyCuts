@@ -1,60 +1,115 @@
 const { execFile } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const https = require('https');
-const { URL } = require('url');
 const config = require('../config');
 const { extraerSegmento } = require('./cortar');
-const { enviarATelegram } = require('./telegram'); // Asumimos que ya tenés tu función para enviar
+// ✅ CORREGIDO: Ahora importamos el archivo correcto
+const { enviarADosCanales } = require('./enviar');
 
 /**
- * Descarga el video, obtiene el título y lo prepara para procesar
- * @param {string} enlace - Enlace del video
- * @returns {Promise<boolean>} Resultado del proceso
+ * Procesa un enlace completo: obtiene título, descarga, corta y envía
+ * @param {string} enlace - Enlace del video de TikTok, YouTube, etc.
+ * @returns {Promise<boolean>} Estado del proceso
  */
 async function procesarEnlace(enlace) {
-    console.log('🔗 Enlace recibido:', enlace);
+    console.log("\n" + "=".repeat(60));
+    console.log("🔗 PROCESANDO ENLACE RECIBIDO");
+    console.log(`🌐 Enlace: ${enlace}`);
+    console.log("=".repeat(60));
 
     try {
-        // 📝 PASO 1: OBTENER EL TÍTULO AUTOMÁTICAMENTE
-        console.log('📋 Obteniendo título del video...');
-        const titulo = await obtenerTituloVideo(enlace);
-        console.log(`✅ Título obtenido: "${titulo}"`);
+        // 📝 PASO 1: Obtener el título automáticamente del video
+        console.log("📋 Obteniendo título del contenido...");
+        const tituloOriginal = await obtenerTitulo(enlace);
+        // Limpiamos el título para que no tenga símbolos que den problemas
+        const tituloLimpio = tituloOriginal.replace(/[<>:"/\\|?*\n\r]/g, ' ').trim().substring(0, 100);
+        console.log(`✅ Título obtenido: "${tituloLimpio}"`);
 
-        // Limpiamos el título para que no tenga caracteres que no sirvan en nombres de archivos
-        const tituloLimpio = titulo.replace(/[<>:"/\\|?*]/g, '').substring(0, 100);
-        const rutaVideoOriginal = path.join(config.ORIGINAL_FOLDER, `${tituloLimpio}.mp4`);
+        // ⬇️ PASO 2: Descargar el video
+        console.log("\n⬇️ Iniciando descarga del video...");
+        const rutaVideoDescargado = path.join(config.ORIGINAL_FOLDER, `${tituloLimpio}.mp4`);
+        await descargarVideo(enlace, rutaVideoDescargado);
+        console.log("✅ Video descargado correctamente");
 
-        // ⬇️ PASO 2: DESCARGAR EL VIDEO
-        console.log('⬇️ Descargando video...');
-        await descargarVideo(enlace, rutaVideoOriginal);
-        console.log('✅ Video descargado correctamente');
+        // 🧮 PASO 3: Calcular duración y cantidad de partes
+        console.log("\n⏱️ Calculando duración del video...");
+        const duracionTotal = await obtenerDuracionVideo(rutaVideoDescargado);
+        const cantidadPartes = Math.floor(duracionTotal / config.CLIP_DURATION) + 1;
+        console.log(`ℹ️ Duración total: ${Math.round(duracionTotal)} segundos | Se generarán ${cantidadPartes} partes de ${config.CLIP_DURATION} segundos cada una`);
 
-        // ✂️ PASO 3: PROCESAR Y CORTAR AUTOMÁTICAMENTE
-        console.log('✂️ Enviando video a proceso de corte...');
-        await procesarVideo(rutaVideoOriginal, tituloLimpio);
+        // ✂️ PASO 4: Generar todas las partes
+        console.log("\n✂️ Iniciando corte y procesamiento de las partes...");
+        const listaDePartes = [];
+
+        for (let numeroParte = 1; numeroParte <= cantidadPartes; numeroParte++) {
+            console.log(`🔄 Procesando parte ${numeroParte}/${cantidadPartes}`);
+            const rutaParte = await extraerSegmento(rutaVideoDescargado, numeroParte);
+            
+            if (rutaParte) {
+                listaDePartes.push({
+                    numero: numeroParte,
+                    ruta: rutaParte
+                });
+            }
+        }
+
+        console.log(`✅ Se generaron ${listaDePartes.length} partes válidas`);
+
+        // 📤 PASO 5: Enviar todas las partes a los DOS CANALES automáticamente
+        console.log("\n📤 Iniciando envío de contenido a los canales...");
+        for (const parte of listaDePartes) {
+            // Mensaje personalizado con el título obtenido automáticamente
+            const mensaje = `🎬 <b>${tituloLimpio}</b>
+📌 <b>Parte:</b> ${parte.numero} de ${listaDePartes.length}
+✅ Contenido procesado y verificado
+🔗 <b>Canal:</b> ${config.CANAL_PUBLICO.NOMBRE}`;
+
+            // Usamos la función que creamos
+            await enviarADosCanales(parte.ruta, mensaje, parte.numero);
+
+            // Eliminamos la parte después de enviarla
+            if (fs.existsSync(parte.ruta)) {
+                fs.unlinkSync(parte.ruta);
+            }
+
+            // Pequeña pausa para no saturar
+            await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+
+        // 🧹 PASO 6: Limpieza final
+        if (config.BORRAR_ARCHIVOS_DESPUES) {
+            if (fs.existsSync(rutaVideoDescargado)) {
+                fs.unlinkSync(rutaVideoDescargado);
+                console.log("🗑️ Video original descargado eliminado");
+            }
+        }
+
+        console.log("\n" + "=".repeat(60));
+        console.log("✅ ¡PROCESO COMPLETADO AL 100%!");
+        console.log("✅ Todo enviado correctamente a tus canales");
+        console.log("=".repeat(60) + "\n");
 
         return true;
 
     } catch (error) {
-        console.error('❌ Error en el proceso:', error.message);
+        console.error("\n❌ ERROR EN EL PROCESO:", error.message);
         return false;
     }
 }
 
 /**
- * Obtiene el título del video desde la página
- * Usa yt-dlp que es la herramienta más potente para esto
+ * Obtiene el título del video usando yt-dlp
  */
-function obtenerTituloVideo(enlace) {
+function obtenerTitulo(enlace) {
     return new Promise((resolve, reject) => {
         execFile('yt-dlp', [
             '--print', 'title',
             '--no-warnings',
+            '--no-playlist',
             enlace
         ], (error, stdout, stderr) => {
             if (error || !stdout.trim()) {
-                return reject(new Error('No se pudo obtener el título del video'));
+                return reject(new Error("No se pudo obtener el título del video"));
             }
             resolve(stdout.trim());
         });
@@ -62,65 +117,31 @@ function obtenerTituloVideo(enlace) {
 }
 
 /**
- * Descarga el video usando yt-dlp
+ * Descarga el video en la mejor calidad disponible
  */
 function descargarVideo(enlace, rutaDestino) {
     return new Promise((resolve, reject) => {
         execFile('yt-dlp', [
             '-o', rutaDestino,
-            '-f', 'mp4[ext=mp4]',
+            '-f', 'best[ext=mp4]/best',
             '--no-warnings',
+            '--no-playlist',
             enlace
         ], (error, stdout, stderr) => {
             if (error) {
-                return reject(new Error('Error al descargar el video: ' + error.message));
+                return reject(new Error("Error al descargar: " + error.message));
             }
             if (fs.existsSync(rutaDestino)) {
                 resolve();
             } else {
-                reject(new Error('El archivo descargado no se encuentra'));
+                reject(new Error("El archivo descargado no se encontró"));
             }
         });
     });
 }
 
 /**
- * Procesa el video: lo corta, genera fragmentos y envía
- */
-async function procesarVideo(rutaVideo, nombreBase) {
-    // Obtenemos la duración total del video
-    const duracionTotal = await obtenerDuracionVideo(rutaVideo);
-    const cantidadPartes = Math.ceil(duracionTotal / config.CLIP_DURATION);
-
-    console.log(`ℹ️ Duración total: ${duracionTotal.toFixed(1)} segundos | Se generarán ${cantidadPartes} partes`);
-
-    // Recorremos todas las partes para generarlas
-    const partesGeneradas = [];
-    for (let i = 1; i <= cantidadPartes; i++) {
-        console.log(`🔄 Generando parte ${i} de ${cantidadPartes}...`);
-        const rutaParte = await extraerSegmento(rutaVideo, i);
-        
-        if (rutaParte) {
-            partesGeneradas.push(rutaParte);
-            // 📤 Enviamos la parte directamente a Telegram en cuanto se genera
-            await enviarATelegram(rutaParte, `${nombreBase} - Parte ${i}`);
-        }
-    }
-
-    // Limpiamos archivos temporales si querés
-    if (config.BORRAR_ARCHIVOS_DESPUES) {
-        fs.unlinkSync(rutaVideo);
-        partesGeneradas.forEach(ruta => {
-            if (fs.existsSync(ruta)) fs.unlinkSync(ruta);
-        });
-        console.log('🧹 Archivos temporales eliminados');
-    }
-
-    console.log('✅ PROCESO FINALIZADO CON ÉXITO');
-}
-
-/**
- * Obtiene la duración del video en segundos
+ * Obtiene la duración total del video en segundos
  */
 function obtenerDuracionVideo(rutaArchivo) {
     return new Promise((resolve, reject) => {
@@ -130,7 +151,9 @@ function obtenerDuracionVideo(rutaArchivo) {
             '-of', 'default=noprint_wrappers=1:nokey=1',
             rutaArchivo
         ], (error, stdout) => {
-            if (error) return reject(error);
+            if (error || !stdout || isNaN(parseFloat(stdout))) {
+                return reject(new Error("No se pudo leer la duración del video"));
+            }
             resolve(parseFloat(stdout.trim()));
         });
     });
