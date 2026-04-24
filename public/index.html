@@ -158,7 +158,8 @@
                 // Preparamos los datos para enviar
                 const formData = new FormData();
                 formData.append('titulo', tituloEscrito);
-                formData.append('video', inputVideo.files[0]);
+                // 👇 CAMBIO AQUÍ: ahora el nombre coincide con lo que espera el servidor
+                formData.append('archivo_video', inputVideo.files[0]);
 
                 // Creamos la petición para poder ver el progreso
                 const xhr = new XMLHttpRequest();
@@ -176,7 +177,7 @@
                 // Cuando termina de subir
                 xhr.onload = function() {
                     reiniciarBarra(barraSubidaContenedor, barraSubida, porcentajeSubida);
-                    
+
                     if (xhr.status === 200) {
                         const datos = JSON.parse(xhr.responseText);
                         if (datos.status === 'ok') {
@@ -304,14 +305,14 @@
             .then(respuesta => respuesta.json())
             .then(datos => {
                 clearInterval(intervaloProgreso);
-                
+
                 // Ponemos la barra al 100% al terminar
                 barraDescarga.style.width = `100%`;
                 porcentajeDescarga.textContent = `100%`;
 
                 setTimeout(() => {
                     reiniciarBarra(barraDescargaContenedor, barraDescarga, porcentajeDescarga);
-                    
+
                     if (datos.status === 'ok') {
                         mostrarMensaje(mensajeExito);
                         // Limpiamos el campo después de terminar
