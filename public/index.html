@@ -10,27 +10,21 @@
     <div class="container">
         <header>
             <h1>⚙️ MALLYCUTS</h1>
-            <p>Sistema automatizado de edición y envío</p>
+            <p>Sistema automatizado de edición</p>
         </header>
 
-        <!-- 🎛️ PANEL DE OPCIONES -->
         <div class="opciones-panel">
-            <button id="btnArchivo" class="boton-opcion activo">
-                📁 SUBIR VIDEO
-            </button>
-            <button id="btnEnlace" class="boton-opcion">
-                🔗 ENLACE / LINK
-            </button>
+            <button id="btnArchivo" class="boton-opcion activo">📁 SUBIR VIDEO</button>
+            <button id="btnEnlace" class="boton-opcion">🔗 DESCARGAR</button>
         </div>
 
         <main>
-            <!-- 📂 SECCIÓN: SUBIR ARCHIVO -->
-            <div id="seccionArchivo" class="seccion-formulario">
-                <form id="formularioArchivo" enctype="multipart/form-data">
-                    
+            <!-- SECCIÓN SUBIR ARCHIVO -->
+            <div id="seccionArchivo" class="seccion">
+                <form id="formularioArchivo">
                     <div class="input-group">
                         <label for="titulo">📝 Título del Video</label>
-                        <input type="text" id="titulo" name="titulo" placeholder="Ej: Serie Completa - Episodio 1" required>
+                        <input type="text" id="titulo" name="titulo" placeholder="Ej: Serie Completa" required>
                     </div>
 
                     <div class="input-group">
@@ -41,48 +35,23 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn-procesar">
-                        🚀 INICIAR PROCESO
-                    </button>
+                    <button type="submit" class="btn-procesar">🚀 INICIAR PROCESO</button>
                 </form>
             </div>
 
-            <!-- 🔗 SECCIÓN: PEGAR ENLACE -->
-            <div id="seccionEnlace" class="seccion-formulario" style="display: none;">
-                <form id="formularioEnlace">
-                    
-                    <div class="input-group">
-                        <label for="tituloEnlace">📝 Título del Video</label>
-                        <input type="text" id="tituloEnlace" name="titulo" placeholder="Ej: Serie Completa - Episodio 1" required>
-                    </div>
-
-                    <div class="input-group">
-                        <label for="url">🔗 Pegar Enlace / URL</label>
-                        <input type="url" id="url" name="url" placeholder="https://..." required>
-                    </div>
-
-                    <button type="submit" class="btn-procesar">
-                        🚀 DESCARGAR Y PROCESAR
-                    </button>
-                </form>
+            <!-- SECCIÓN DESCARGA (REDIRIJE) -->
+            <div id="seccionEnlace" class="seccion" style="display: none;">
+                <div class="redirect-card">
+                    <h2>🔗 Módulo de Descargas</h2>
+                    <p>Ve a la página especial para gestionar enlaces:</p>
+                    <a href="/descarga.html" class="btn-ir">📥 IR A DESCARGAS</a>
+                </div>
             </div>
 
             <div id="resultado" class="resultado"></div>
         </main>
     </div>
 
-    <!-- 🍯 PUBLICIDAD -->
-    <div class="publicidad">
-        <div class="avatar-placeholder">
-            <span>🤖</span>
-        </div>
-        <div class="texto-publi">
-            <p class="titulo-publi">Powered by Dola AI</p>
-            <p class="subtitulo-publi">Asistencia Técnica y Desarrollo</p>
-        </div>
-    </div>
-
-    <!-- 🎮 CONTROLADOR EXTERNO -->
     <script src="/index.js"></script>
 </body>
 </html>
