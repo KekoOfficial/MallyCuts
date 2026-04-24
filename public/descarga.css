@@ -1,110 +1,170 @@
+/* ==============================================
+   🌑 ESTILOS DESCARGAS - MALLYCUTS
+   ============================================== */
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: Arial, sans-serif;
+    font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
 body {
-    background: linear-gradient(135deg, #1a1a2e, #16213e);
-    color: white;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #f8fafc;
     min-height: 100vh;
     padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .container {
-    max-width: 700px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: 500px;
+    background: rgba(30, 41, 59, 0.7);
+    border-radius: 20px;
+    padding: 30px 25px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
 }
+
+/* ==============================================
+   🔝 HEADER
+   ============================================== */
 
 header {
     text-align: center;
     margin-bottom: 30px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #0f3460;
+}
+
+.logo {
+    font-size: 50px;
+    margin-bottom: 10px;
 }
 
 header h1 {
-    color: #00f5d4;
     font-size: 28px;
+    font-weight: 800;
+    color: #38bdf8;
+    letter-spacing: 2px;
+    margin-bottom: 5px;
 }
 
 header p {
-    color: #aaa;
+    color: #94a3b8;
+    font-size: 14px;
 }
 
-main {
-    background: rgba(255,255,255,0.05);
-    padding: 30px;
-    border-radius: 15px;
-    border: 1px solid #0f3460;
-}
+/* ==============================================
+   📄 FORMULARIO
+   ============================================== */
 
-.input-box {
+.form-group {
     margin-bottom: 20px;
 }
 
-.input-box label {
+.form-group label {
     display: block;
     margin-bottom: 8px;
-    color: #00f5d4;
-    font-weight: bold;
+    color: #cbd5e1;
+    font-weight: 600;
+    font-size: 15px;
 }
 
-.input-box input {
+.form-group input {
     width: 100%;
     padding: 15px;
-    background: #0f3460;
-    border: none;
-    border-radius: 8px;
-    color: white;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid #334155;
+    border-radius: 10px;
+    color: #f8fafc;
     font-size: 16px;
+    outline: none;
+    transition: border 0.3s;
 }
 
+.form-group input:focus {
+    border-color: #38bdf8;
+}
+
+/* ==============================================
+   ⚙️ OPCIONES / CHECKBOX
+   ============================================== */
+
 .opciones {
-    background: rgba(0,245,212,0.1);
-    padding: 15px;
-    border-radius: 8px;
+    background: rgba(56, 189, 248, 0.1);
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    border-radius: 12px;
+    padding: 18px;
     margin: 20px 0;
 }
 
 .opciones h3 {
-    color: #00f5d4;
-    margin-bottom: 10px;
+    color: #38bdf8;
+    margin-bottom: 12px;
+    font-size: 16px;
 }
 
-.opciones label {
-    display: block;
-    margin: 8px 0;
+.check-label {
+    display: flex;
+    align-items: center;
+    margin: 10px 0;
     cursor: pointer;
+    color: #cbd5e1;
+    font-size: 14px;
 }
 
-.btn-descargar {
+.check-label input {
+    width: auto;
+    margin-right: 10px;
+    accent-color: #38bdf8;
+    transform: scale(1.2);
+}
+
+/* ==============================================
+   🚀 BOTÓN
+   ============================================== */
+
+.btn-submit {
     width: 100%;
-    padding: 18px;
-    background: linear-gradient(45deg, #00f5d4, #00a8cc);
+    padding: 16px;
+    margin-top: 10px;
+    background: linear-gradient(90deg, #38bdf8, #0ea5e9);
+    color: #0f172a;
     border: none;
-    border-radius: 8px;
-    color: #1a1a2e;
-    font-size: 18px;
+    border-radius: 10px;
+    font-size: 16px;
     font-weight: bold;
     cursor: pointer;
     transition: all 0.3s;
+    box-shadow: 0 5px 15px rgba(56, 189, 248, 0.2);
 }
 
-.btn-descargar:hover {
-    transform: scale(1.02);
-    box-shadow: 0 0 20px rgba(0,245,212,0.5);
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(56, 189, 248, 0.4);
 }
+
+/* ==============================================
+   📢 ESTADO
+   ============================================== */
 
 .estado {
     margin-top: 20px;
     padding: 15px;
-    background: #0f3460;
-    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.8);
+    border-radius: 10px;
     text-align: center;
     min-height: 50px;
+    color: #94a3b8;
+    border: 1px solid #334155;
 }
+
+/* ==============================================
+   🔙 BOTÓN VOLVER
+   ============================================== */
 
 .volver {
     text-align: center;
@@ -112,10 +172,12 @@ main {
 }
 
 .volver a {
-    color: #aaa;
+    color: #94a3b8;
     text-decoration: none;
+    font-size: 14px;
+    transition: color 0.3s;
 }
 
 .volver a:hover {
-    color: #00f5d4;
+    color: #38bdf8;
 }
