@@ -14,20 +14,19 @@ function extraerSegmento(rutaEntrada, numeroParte) {
         const tiempoInicio = (numeroParte - 1) * config.CLIP_DURATION;
         const rutaSalida = path.join(config.TEMP_FOLDER, `parte_${numeroParte}.mp4`);
 
-        // ⚙️ CONFIGURACIONES QUE PODÉS CAMBIAR A TU GUSTO
-        const VELOCIDAD_VIDEO = 1.3;               // Velocidad: 1.25, 1.3, 1.4 (no más de 1.5 para que se entienda)
-        const TEXTO_MARCA = "EnseñaEn15";          // PONÉ ACÁ EL NOMBRE DE TU CANAL O TU MARCA
-        const TAMANIO_TEXTO = 22;                  // Tamaño de la letra
-        const COLOR_TEXTO = "white";               // Color: white, black, yellow, cyan, etc.
-        const TRANSPARENCIA_TEXTO = "0.8";         // 1 = opaco total, 0 = transparente total
-        const POSICION_X = "15";                   // Distancia desde el borde izquierdo (en píxeles)
-        const POSICION_Y = "15";                   // Distancia desde el borde superior (en píxeles)
-        // Si querés ponerlo ABAJO A LA DERECHA: POSICION_X = "main_w-text_w-15" y POSICION_Y = "main_h-text_h-15"
+        // ⚙️ TODOS LOS VALORES SE TOMAN DIRECTAMENTE DE TU CONFIGURACIÓN
+        const VELOCIDAD_VIDEO = config.VELOCIDAD_PREDETERMINADA;
+        const TEXTO_MARCA = config.TEXTO_MARCA_PREDETERMINADA;
+        const TAMANIO_TEXTO = 22;
+        const COLOR_TEXTO = "white";
+        const TRANSPARENCIA_TEXTO = "0.8";
+        const POSICION_X = "15";               // Arriba a la izquierda
+        const POSICION_Y = "15";
+        // Si querés abajo a la derecha usá:
+        // const POSICION_X = "main_w-text_w-15";
+        // const POSICION_Y = "main_h-text_h-15";
 
-        // 🎯 FILTROS APLICADOS AL VIDEO
-        // 1. Cambia la velocidad del video
-        // 2. Cambia la velocidad del audio para que coincida
-        // 3. Agrega tu texto/marca de agua
+        // 🎯 FILTROS APLICADOS
         const FILTROS_VIDEO = `
             setpts=${1 / VELOCIDAD_VIDEO}*PTS,
             atempo=${VELOCIDAD_VIDEO},
