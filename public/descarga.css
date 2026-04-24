@@ -1,0 +1,121 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    color: white;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #0f3460;
+}
+
+header h1 {
+    color: #00f5d4;
+    font-size: 28px;
+}
+
+header p {
+    color: #aaa;
+}
+
+main {
+    background: rgba(255,255,255,0.05);
+    padding: 30px;
+    border-radius: 15px;
+    border: 1px solid #0f3460;
+}
+
+.input-box {
+    margin-bottom: 20px;
+}
+
+.input-box label {
+    display: block;
+    margin-bottom: 8px;
+    color: #00f5d4;
+    font-weight: bold;
+}
+
+.input-box input {
+    width: 100%;
+    padding: 15px;
+    background: #0f3460;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 16px;
+}
+
+.opciones {
+    background: rgba(0,245,212,0.1);
+    padding: 15px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.opciones h3 {
+    color: #00f5d4;
+    margin-bottom: 10px;
+}
+
+.opciones label {
+    display: block;
+    margin: 8px 0;
+    cursor: pointer;
+}
+
+.btn-descargar {
+    width: 100%;
+    padding: 18px;
+    background: linear-gradient(45deg, #00f5d4, #00a8cc);
+    border: none;
+    border-radius: 8px;
+    color: #1a1a2e;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-descargar:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 20px rgba(0,245,212,0.5);
+}
+
+.estado {
+    margin-top: 20px;
+    padding: 15px;
+    background: #0f3460;
+    border-radius: 8px;
+    text-align: center;
+    min-height: 50px;
+}
+
+.volver {
+    text-align: center;
+    margin-top: 25px;
+}
+
+.volver a {
+    color: #aaa;
+    text-decoration: none;
+}
+
+.volver a:hover {
+    color: #00f5d4;
+}
