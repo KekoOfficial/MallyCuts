@@ -1,45 +1,64 @@
 // ==============================================
 // 🚀 SERVIDOR PRINCIPAL - MALLYCUTS
 // ==============================================
-// Configuración optimizada para archivos pesados
-// ==============================================
 
 const express = require('express');
-const app = express();
 const path = require('path');
+const fs = require('fs');
+
+// Importación de módulos internos
+const log = require('./js/logger');
+const config = require('./config');
 
 // ==============================================
-// ⚙️ CONFIGURACIÓN DE LÍMITES
+// 🚀 INICIALIZACIÓN DEL SERVIDOR
 // ==============================================
+const app = express();
+const PUERTO = config.PUERTO || 3000;
 
-// 💡 LÍMITE ELIMINADO: Aceptar archivos de hasta 10GB
-app.use(express.json({ limit: '10000mb' }));
-app.use(express.urlencoded({ limit: '10000mb', extended: true }));
+// Middlewares para leer datos
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Servir archivos estáticos
+// Carpeta pública para el HTML y CSS
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ==============================================
-// 🧩 CARGA DE RUTAS
+// 📂 CARPETAS DE TRABAJO
+// ==============================================
+const carpetas = [
+    config.CARPETA_ENTRADA,
+    config.CARPETA_TEMPORAL
+];
+
+carpetas.forEach(carpeta => {
+    if (!fs.existsSync(carpeta)) {
+        fs.mkdirSync(carpeta, { recursive: true });
+        log.info(`📂 Carpeta creada: ${carpeta}`);
+    }
+});
+
+// ==============================================
+// 🔌 CONEXIÓN DE ROUTERS
 // ==============================================
 
-const rutasProcesar = require('./routes/archivos');
-app.use('/', rutasProcesar);
+// Ruta principal (El proceso completo)
+app.use('/', require('./routes/archivos'));
+
+// Nuevos módulos separados
+app.use('/telegram', require('./routes/telegram'));
+app.use('/cortar', require('./routes/cortar'));
+app.use('/upload', require('./routes/upload'));
+app.use('/enlaces', require('./routes/enlaces'));
+app.use('/config', require('./routes/config'));
 
 // ==============================================
-// 🚀 INICIO DEL SERVIDOR
+// 🟢 INICIAR SERVIDOR
 // ==============================================
-
-const PUERTO = 3000;
-
 app.listen(PUERTO, () => {
-    console.log(`
-======================================================================
-                  ✅ SERVIDOR INICIADO CORRECTAMENTE
-======================================================================
-ℹ️ Dirección de acceso: http://localhost:${PUERTO}
-ℹ️ Límite máximo de archivos: 10 GB
-ℹ️ Estado: Listo para recibir archivos pesados
-======================================================================
-    `);
+    log.separador();
+    log.exito('✅ MALLYCUTS ESTÁ ACTIVO Y FUNCIONANDO');
+    log.info(`🌐 Accede desde: http://localhost:${PUERTO}`);
+    log.info(`⚙️ Modo: Optimizado | Rápido | Seguro`);
+    log.separador();
 });
