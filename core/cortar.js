@@ -1,5 +1,5 @@
 // ✂️ MÓDULO DE CORTE Y PROCESAMIENTO DE VIDEOS
-// Adaptado para la nueva estructura de configuración
+// Incluye marca de agua, velocidad y corte
 
 const path = require('path');
 const fs = require('fs');
@@ -13,60 +13,53 @@ const config = require('../config');
 // Convertimos exec a promesa
 const ejecutarComando = util.promisify(exec);
 
-/**
- * Extrae un segmento del video original
- * @param {string} rutaOriginal - Ruta del archivo fuente
- * @param {number} numeroParte - Número de parte
- * @param {string} tituloVideo - Título para el nombre del archivo
- * @returns {Promise<string|null>} Ruta del archivo generado
- */
 async function extraerSegmento(rutaOriginal, numeroParte, tituloVideo) {
     try {
-        // Verificar archivo original
         if (!fs.existsSync(rutaOriginal)) {
             throw new Error(`El archivo original no existe: ${rutaOriginal}`);
         }
 
-        // ==============================================
-        // TOMAMOS LOS DATOS DIRECTO DE TU CONFIG
-        // ==============================================
+        // Tomamos datos de config.js
         const carpetaSalida = config.CARPETA_TEMPORAL;
         const duracionPorParte = config.DURACION_POR_PARTE;
         const velocidad = config.VELOCIDAD_VIDEO;
+        const marcaAgua = config.TEXTO_MARCA_AGUA || "EnseñaEn15"; // 👈 Tu marca
 
-        // Seguridad por si faltara algo
         if (!carpetaSalida || typeof carpetaSalida !== 'string') {
-            throw new Error("La ruta CARPETA_TEMPORAL no está definida correctamente en config.js");
+            throw new Error("Ruta CARPETA_TEMPORAL no definida");
         }
 
-        // Calculamos punto de inicio
+        // Calculamos tiempos
         const tiempoInicio = (numeroParte - 1) * duracionPorParte;
 
-        // Generamos nombre y ruta completa
+        // Nombre y ruta
         const nombreLimpio = tituloVideo.replace(/[<>:"/\\|?*\n\r\t]/g, ' ').trim();
         const nombreArchivoSalida = `${nombreLimpio}_parte_${numeroParte}.mp4`;
         const rutaArchivoSalida = path.join(carpetaSalida, nombreArchivoSalida);
 
-        // Logs informativos
-        log.detalle(`Generando parte ${numeroParte}: desde segundo ${tiempoInicio} por ${duracionPorParte}s`);
-        log.detalle(`Archivo de salida: ${rutaArchivoSalida}`);
+        log.detalle(`Generando parte ${numeroParte}: desde ${tiempoInicio}s por ${duracionPorParte}s`);
+        log.detalle(`Archivo salida: ${rutaArchivoSalida}`);
+        log.detalle(`Aplicando marca de agua: ${marcaAgua}`);
 
         // ==============================================
-        // COMANDO FFMPEG
+        // 💡 AQUÍ ESTÁ LA MAGIA: AGREGAMOS LA MARCA
         // ==============================================
+        // drawtext = texto en pantalla
+        // x y w = posición esquina inferior derecha
+        // fontsize = tamaño, color = blanco
         const comando = `ffmpeg -y -i "${rutaOriginal}" -ss ${tiempoInicio} -t ${duracionPorParte} ` +
-            `-filter:v "setpts=PTS/${velocidad}" ` +
+            `-filter:v "setpts=PTS/${velocidad}, drawtext=text='${marcaAgua}':fontfile=/system/fonts/Roboto-Regular.ttf:fontsize=24:fontcolor=white@0.8:x=w-tw-10:y=h-th-10" ` +
             `-filter:a "atempo=${velocidad}" ` +
             `-c:v libx264 -crf 23 -preset fast -c:a aac -b:a 128k "${rutaArchivoSalida}"`;
 
-        // Ejecutamos
+        // Ejecutar
         await ejecutarComando(comando);
 
-        // Verificamos que salió bien
+        // Verificar
         if (fs.existsSync(rutaArchivoSalida) && fs.statSync(rutaArchivoSalida).size > 1024) {
             return rutaArchivoSalida;
         } else {
-            throw new Error('El archivo generado está vacío o es inválido');
+            throw new Error('Archivo generado vacío o incorrecto');
         }
 
     } catch (error) {
