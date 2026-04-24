@@ -25,23 +25,23 @@ const { enviarADosCanales } = require('../core/enviar');
 
 // Definimos dónde se guardarán y cómo se nombrarán los archivos
 const almacenamiento = multer.diskStorage({
-    // Carpeta de destino
+    // Carpeta de destino para los archivos subidos
     destination: (req, archivo, callback) => {
         log.detalle('Preparando espacio para guardar el archivo...');
         callback(null, config.INPUT_FOLDER);
     },
 
-    // Reglas para el nombre del archivo
+    // Reglas para generar el nombre del archivo
     filename: (req, archivo, callback) => {
         let tituloArchivo = req.body.titulo?.trim() || 'video_sin_titulo';
 
         // Eliminamos caracteres que no se pueden usar en nombres de archivos
         tituloArchivo = tituloArchivo.replace(/[<>:"/\\|?*\n\r\t]/g, ' ').trim();
-        tituloArchivo = tituloArchivo.substring(0, 100); // Limitamos la longitud máxima
+        tituloArchivo = tituloArchivo.substring(0, 100); // Limitamos longitud máxima
 
         // Agregamos marca de tiempo para evitar duplicados
         const nombreFinal = `${tituloArchivo}_${Date.now()}.mp4`;
-        log.detalle(`Nombre asignado: ${nombreFinal}`);
+        log.detalle(`Nombre asignado al archivo: ${nombreFinal}`);
 
         callback(null, nombreFinal);
     }
@@ -55,7 +55,7 @@ const filtroArchivos = (req, archivo, callback) => {
     ];
 
     if (formatosPermitidos.includes(archivo.mimetype)) {
-        log.exito(`Formato válido: ${archivo.mimetype}`);
+        log.exito(`Formato de archivo válido: ${archivo.mimetype}`);
         callback(null, true);
     } else {
         log.error(`Formato no permitido: ${archivo.mimetype}. Solo se aceptan archivos de video.`);
@@ -63,24 +63,26 @@ const filtroArchivos = (req, archivo, callback) => {
     }
 };
 
+// ⚠️ NOMBRE DEL CAMPO QUE DEBE COINCIDIR EXACTAMENTE CON EL FRONTEND
+const NOMBRE_CAMPO_ARCHIVO = 'archivo_video';
+
 // Configuración final de multer
-// ⚠️ El nombre "archivo_video" debe coincidir exactamente con el atributo name de tu input en el HTML
 const subirArchivo = multer({
     storage: almacenamiento,
     fileFilter: filtroArchivos,
     limits: {
-        fileSize: 10 * 1024 * 1024 * 1024, // Límite de 10 GB
+        fileSize: 10 * 1024 * 1024 * 1024, // Límite máximo: 10 GB
         parts: 100,
         headerPairs: 2000
     }
-}).single('archivo_video');
+}).single(NOMBRE_CAMPO_ARCHIVO);
 
 // ==============================================
 // RUTA PRINCIPAL DE PROCESAMIENTO
 // ==============================================
 
 /**
- * Recibe el archivo subido, lo analiza, lo divide y lo envía
+ * Recibe el archivo subido, lo analiza, lo divide en partes y lo envía a los canales
  */
 router.post('/procesar', (req, res) => {
     log.separador('📥 NUEVA SOLICITUD: PROCESAR ARCHIVO');
@@ -94,13 +96,14 @@ router.post('/procesar', (req, res) => {
                 log.error('Error al subir el archivo', errorSubida);
                 let mensajeError = `❌ No se pudo subir el archivo: ${errorSubida.message}`;
 
-                // Mensaje específico si se supera el límite de tamaño
-                if (errorSubida.code === 'LIMIT_FILE_SIZE') {
-                    mensajeError = `❌ El archivo supera el límite máximo de 10 GB. Podés modificar este valor en el archivo de configuración.`;
+                // Mensaje específico para el error de nombre de campo incorrecto
+                if (errorSubida.message === 'Unexpected field' || errorSubida.code === 'LIMIT_UNEXPECTED_FILE') {
+                    mensajeError = `❌ ERROR DE CONFIGURACIÓN: El nombre del campo del archivo no coincide. 
+                    El servidor espera que se envíe con el nombre: "${NOMBRE_CAMPO_ARCHIVO}"`;
                 }
-                // Mensaje específico si el nombre del campo es incorrecto
-                if (errorSubida.code === 'LIMIT_UNEXPECTED_FILE' || errorSubida.message === 'Unexpected field') {
-                    mensajeError = `❌ El nombre del campo de archivo no coincide. Asegurate de que en tu formulario el input tenga el atributo name="archivo_video".`;
+                // Mensaje específico cuando el archivo supera el límite de tamaño
+                else if (errorSubida.code === 'LIMIT_FILE_SIZE') {
+                    mensajeError = `❌ El archivo supera el límite máximo de 10 GB. Podés modificar este valor en el archivo de configuración.`;
                 }
 
                 return res.json({
@@ -118,18 +121,18 @@ router.post('/procesar', (req, res) => {
                 });
             }
 
-            // Mostramos la información recibida
+            // Mostramos información del archivo recibido
             const tamanoArchivo = obtenerTamanoArchivoMB(req.file.path);
             log.info('Datos recibidos correctamente:');
-            log.detalle(`Título: ${req.body.titulo.trim()}`);
+            log.detalle(`Título del video: ${req.body.titulo.trim()}`);
             log.detalle(`Nombre del archivo: ${req.file.filename}`);
-            log.detalle(`Tamaño: ${tamanoArchivo}`);
+            log.detalle(`Tamaño del archivo: ${tamanoArchivo}`);
 
-            // Guardamos valores para usarlos más adelante
+            // Guardamos valores para usarlos en todo el proceso
             const tituloVideo = req.body.titulo.trim();
             const rutaArchivoOriginal = path.join(config.INPUT_FOLDER, req.file.filename);
 
-            // Verificamos que el archivo se haya guardado correctamente
+            // Verificamos que el archivo se haya guardado correctamente y no esté dañado
             if (!archivoEsValido(rutaArchivoOriginal)) {
                 log.error('El archivo subido está dañado o no se guardó correctamente');
                 return res.json({
@@ -143,7 +146,7 @@ router.post('/procesar', (req, res) => {
             let duracionTotal;
             try {
                 duracionTotal = await obtenerDuracionVideo(rutaArchivoOriginal);
-                log.exito(`Duración total: ${formatoDuracion(duracionTotal)}`);
+                log.exito(`Duración total del video: ${formatoDuracion(duracionTotal)}`);
             } catch (error) {
                 log.error('No se pudo leer la duración del video', error);
                 return res.json({
@@ -157,11 +160,11 @@ router.post('/procesar', (req, res) => {
             const cantidadPartes = Math.ceil(duracionTotal / duracionParte);
             log.info(`Se dividirá el video en ${cantidadPartes} partes de ${duracionParte} segundos cada una`);
 
-            // Array para guardar las partes generadas
+            // Array para guardar las rutas de las partes generadas
             const listaPartesGeneradas = [];
 
-            // Iniciamos el proceso de corte
-            log.info('\n🔹 INICIANDO CORTE Y PROCESAMIENTO');
+            // Iniciamos el proceso de corte y procesamiento
+            log.info('\n🔹 INICIANDO CORTE Y PROCESAMIENTO DE PARTES');
             for (let numeroParte = 1; numeroParte <= cantidadPartes; numeroParte++) {
                 log.info(`\nProcesando parte ${numeroParte} de ${cantidadPartes}`);
 
@@ -201,13 +204,13 @@ router.post('/procesar', (req, res) => {
                 });
             }
 
-            log.exito(`\n✅ Corte finalizado. Se generaron ${listaPartesGeneradas.length} partes válidas de un total de ${cantidadPartes} planificadas`);
+            log.exito(`\n✅ Proceso de corte finalizado. Se generaron ${listaPartesGeneradas.length} partes válidas de un total de ${cantidadPartes} planificadas`);
 
-            // Iniciamos el envío a Telegram
-            log.info('\n📤 INICIANDO ENVÍO A LOS CANALES');
+            // Iniciamos el envío de las partes a los canales de Telegram
+            log.info('\n📤 INICIANDO ENVÍO A LOS CANALES DE TELEGRAM');
 
             for (const parte of listaPartesGeneradas) {
-                // Creamos el mensaje que acompañará al archivo
+                // Creamos el mensaje que acompañará a cada archivo
                 const mensajeTelegram = `🎬 <b>${tituloVideo}</b>
 📌 Parte ${parte.numero} de ${listaPartesGeneradas.length}
 ⏱️ Duración: ${duracionParte} segundos
@@ -228,7 +231,7 @@ router.post('/procesar', (req, res) => {
                     log.detalle(`Archivo temporal de la parte ${parte.numero} eliminado`);
                 }
 
-                // Esperamos 3 segundos entre envíos para no saturar la API
+                // Esperamos 3 segundos entre envíos para no saturar la API de Telegram
                 await new Promise(resolve => setTimeout(resolve, 3000));
             }
 
@@ -240,7 +243,7 @@ router.post('/procesar', (req, res) => {
 
             log.separador('✅ PROCESO COMPLETADO CON ÉXITO');
 
-            // Respondemos al usuario
+            // Respondemos al usuario que todo terminó correctamente
             return res.json({
                 status: 'ok',
                 mensaje: `✅ Proceso finalizado. Se enviaron ${listaPartesGeneradas.length} partes a tus canales de Telegram.`
