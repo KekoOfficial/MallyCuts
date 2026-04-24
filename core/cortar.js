@@ -1,5 +1,5 @@
 // ✂️ MÓDULO DE CORTE Y PROCESAMIENTO DE VIDEOS
-// Versión corregida - Compatible con config.js actual
+// Adaptado para la nueva estructura de configuración
 
 const path = require('path');
 const fs = require('fs');
@@ -15,30 +15,31 @@ const ejecutarComando = util.promisify(exec);
 
 /**
  * Extrae un segmento del video original
+ * @param {string} rutaOriginal - Ruta del archivo fuente
+ * @param {number} numeroParte - Número de parte
+ * @param {string} tituloVideo - Título para el nombre del archivo
+ * @returns {Promise<string|null>} Ruta del archivo generado
  */
 async function extraerSegmento(rutaOriginal, numeroParte, tituloVideo) {
     try {
-        // Verificar que el archivo existe
+        // Verificar archivo original
         if (!fs.existsSync(rutaOriginal)) {
             throw new Error(`El archivo original no existe: ${rutaOriginal}`);
         }
 
         // ==============================================
-        // 💡 SOLUCIÓN: Definimos la ruta de salida aquí
+        // TOMAMOS LOS DATOS DIRECTO DE TU CONFIG
         // ==============================================
-        // Usamos TEMP_FOLDER que existe en tu config.js
-        const carpetaSalida = config.TEMP_FOLDER;
-        
-        // Verificamos que la carpeta sea un string válido
+        const carpetaSalida = config.CARPETA_TEMPORAL;
+        const duracionPorParte = config.DURACION_POR_PARTE;
+        const velocidad = config.VELOCIDAD_VIDEO;
+
+        // Seguridad por si faltara algo
         if (!carpetaSalida || typeof carpetaSalida !== 'string') {
-            throw new Error("Ruta de carpeta temporal no definida correctamente");
+            throw new Error("La ruta CARPETA_TEMPORAL no está definida correctamente en config.js");
         }
 
-        // Tomamos parámetros
-        const duracionPorParte = config.DURACION_POR_PARTE || 60;
-        const velocidad = config.VELOCIDAD_VIDEO || 1.0;
-
-        // Calculamos tiempos
+        // Calculamos punto de inicio
         const tiempoInicio = (numeroParte - 1) * duracionPorParte;
 
         // Generamos nombre y ruta completa
@@ -46,8 +47,8 @@ async function extraerSegmento(rutaOriginal, numeroParte, tituloVideo) {
         const nombreArchivoSalida = `${nombreLimpio}_parte_${numeroParte}.mp4`;
         const rutaArchivoSalida = path.join(carpetaSalida, nombreArchivoSalida);
 
-        // Logs
-        log.detalle(`Generando parte ${numeroParte}: desde el segundo ${tiempoInicio} por ${duracionPorParte} segundos`);
+        // Logs informativos
+        log.detalle(`Generando parte ${numeroParte}: desde segundo ${tiempoInicio} por ${duracionPorParte}s`);
         log.detalle(`Archivo de salida: ${rutaArchivoSalida}`);
 
         // ==============================================
@@ -58,14 +59,14 @@ async function extraerSegmento(rutaOriginal, numeroParte, tituloVideo) {
             `-filter:a "atempo=${velocidad}" ` +
             `-c:v libx264 -crf 23 -preset fast -c:a aac -b:a 128k "${rutaArchivoSalida}"`;
 
-        // Ejecutar
+        // Ejecutamos
         await ejecutarComando(comando);
 
-        // Verificar resultado
+        // Verificamos que salió bien
         if (fs.existsSync(rutaArchivoSalida) && fs.statSync(rutaArchivoSalida).size > 1024) {
             return rutaArchivoSalida;
         } else {
-            throw new Error('El archivo generado es vacío o incorrecto');
+            throw new Error('El archivo generado está vacío o es inválido');
         }
 
     } catch (error) {
