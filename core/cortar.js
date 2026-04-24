@@ -21,38 +21,20 @@ async function extraerYEditarSegmento(rutaArchivo, numeroParte, titulo) {
             log.detalle(`Inicio: ${tiempoInicio}s | Duración: ${duracionPorParte}s`);
 
             // ==============================================
-            // 🎬 COMANDO FFmpeg OPTIMIZADO
+            // 🎬 COMANDO FFmpeg OPTIMIZADO (SIN MARCA DE AGUA)
             // ==============================================
             let comando = ffmpeg(rutaArchivo)
                 .setStartTime(tiempoInicio)
                 .duration(duracionPorParte)
 
-                // Aplicar todos los filtros juntos
-                .videoFilters([
-                    // 1. VELOCIDAD DE REPRODUCCIÓN
-                    `setpts=${1 / config.VELOCIDAD_VIDEO}*PTS`,
-                    // 2. MARCA DE AGUA CON DOS LÍNEAS
-                    {
-                        filter: 'drawtext',
-                        options: {
-                            text: 'EscenaEn15', // <-- TEXTO FINAL
-                            fontfile: '/system/fonts/Roboto-Regular.ttf',
-                            fontsize: 40,
-                            fontcolor: 'white@0.8',
-                            bordercolor: 'black@1.0',
-                            borderw: 2,
-                            x: '(w-text_w)/2',
-                            y: '(h-text_h)/2'
-                        }
-                    }
-                ])
-                // Filtro de audio
+                // 1. VELOCIDAD DE REPRODUCCIÓN
+                .videoFilters(`setpts=${1 / config.VELOCIDAD_VIDEO}*PTS`)
                 .audioFilters(`atempo=${config.VELOCIDAD_VIDEO}`)
 
                 // Configuración de salida RÁPIDA
                 .outputOptions([
                     '-c:v libx264',
-                    '-preset fast',
+                    '-preset fast',      // <-- MÁS RÁPIDO
                     '-crf 23',
                     '-c:a aac',
                     '-b:a 128k',
