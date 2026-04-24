@@ -11,7 +11,7 @@ try {
     config = require('./config');
     console.log("✅ Archivo de configuración cargado");
     console.log("📂 Carpeta originales:", config.ORIGINAL_FOLDER);
-    console.log("📂 Carpeta procesados:", config.PROCESADOS_FOLDER);
+    console.log("📂 Carpeta procesados/temporales:", config.TEMP_FOLDER);
 } catch (error) {
     console.error("❌ ERROR: No se pudo cargar config.js:", error.message);
     process.exit(1);
@@ -51,10 +51,12 @@ app.use((err, req, res, next) => {
     res.json({ status: 'error', mensaje: '❌ Ocurrió un error en el servidor' });
 });
 
-// Creamos las carpetas si no existen
+// Creamos las carpetas si no existen (usando los nombres de tu configuración)
 const carpetas = [
     config.ORIGINAL_FOLDER,
-    config.PROCESADOS_FOLDER
+    config.TEMP_FOLDER,
+    config.INPUT_FOLDER,
+    config.TEMP_UPLOAD_FOLDER
 ];
 
 carpetas.forEach(carpeta => {
@@ -75,8 +77,8 @@ carpetas.forEach(carpeta => {
 // ==============================================
 const almacenamientoArchivos = multer.diskStorage({
     destination: (req, file, cb) => {
-        console.log("📂 Guardando archivo en carpeta de originales");
-        cb(null, config.ORIGINAL_FOLDER);
+        console.log("📂 Guardando archivo en carpeta de entrada");
+        cb(null, config.INPUT_FOLDER);
     },
     filename: (req, file, cb) => {
         let tituloArchivo = req.body.titulo?.trim() || 'video_sin_titulo';
@@ -135,7 +137,7 @@ app.post('/procesar', (req, res) => {
             }
 
             const tituloOriginal = req.body.titulo.trim();
-            const rutaArchivoOriginal = path.join(config.ORIGINAL_FOLDER, req.file.filename);
+            const rutaArchivoOriginal = path.join(config.INPUT_FOLDER, req.file.filename);
             console.log("📂 Ruta completa del archivo:", rutaArchivoOriginal);
 
             // Verificamos que el archivo se guardó
@@ -203,7 +205,7 @@ app.post('/procesar', (req, res) => {
                 const mensajeTelegram = `🎬 <b>${tituloOriginal}</b>
 📌 <b>Parte:</b> ${parte.numero} de ${listaPartes.length}
 ✅ Contenido procesado automáticamente
-🔗 <b>Canal:</b> ${config.CANAL_PUBLICO?.NOMBRE || 'MallyCuts'}`;
+🔗 <b>Canal:</b> ${config.CANAL_PUBLICO?.NOMBRE || 'EnseñaEn15'}`;
 
                 try {
                     await enviarADosCanales(parte.ruta, mensajeTelegram, parte.numero);
