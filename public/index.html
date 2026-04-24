@@ -9,42 +9,50 @@
 <body>
     <div class="container">
         <header>
-            <h1>⚙️ MALLYCUTS</h1>
-            <p>Sistema automatizado de edición</p>
+            <div class="logo">⚙️</div>
+            <h1>MALLYCUTS</h1>
+            <p>Sistema automatizado de edición y envío</p>
         </header>
 
-        <div class="opciones-panel">
-            <button id="btnArchivo" class="boton-opcion activo">📁 SUBIR VIDEO</button>
-            <button id="btnEnlace" class="boton-opcion">🔗 DESCARGAR</button>
+        <div class="tabs">
+            <button id="btnArchivo" class="tab-btn active">
+                📁 SUBIR VIDEO
+            </button>
+            <button id="btnEnlace" class="tab-btn">
+                🔗 DESCARGAR
+            </button>
         </div>
 
         <main>
             <!-- SECCIÓN SUBIR ARCHIVO -->
-            <div id="seccionArchivo" class="seccion">
-                <form id="formularioArchivo">
-                    <div class="input-group">
+            <div id="seccionArchivo" class="tab-content active">
+                <form id="formularioArchivo" enctype="multipart/form-data">
+                    
+                    <div class="form-group">
                         <label for="titulo">📝 Título del Video</label>
-                        <input type="text" id="titulo" name="titulo" placeholder="Ej: Serie Completa" required>
+                        <input type="text" id="titulo" name="titulo" placeholder="Ej: Serie Completa - Episodio 1" required>
                     </div>
 
-                    <div class="input-group">
-                        <label for="video">🎬 Seleccionar Archivo</label>
-                        <div class="file-input">
+                    <div class="form-group">
+                        <label>🎬 Seleccionar Archivo</label>
+                        <label class="file-upload">
                             <input type="file" id="video" name="archivo_video" accept="video/*" required>
-                            <span id="file-label">Ningún archivo seleccionado</span>
-                        </div>
+                            <span id="file-text">Click para seleccionar un video</span>
+                        </label>
                     </div>
 
-                    <button type="submit" class="btn-procesar">🚀 INICIAR PROCESO</button>
+                    <button type="submit" class="btn-submit">
+                        🚀 INICIAR PROCESO
+                    </button>
                 </form>
             </div>
 
-            <!-- SECCIÓN DESCARGA (REDIRIJE) -->
-            <div id="seccionEnlace" class="seccion" style="display: none;">
+            <!-- SECCIÓN DESCARGA -->
+            <div id="seccionEnlace" class="tab-content">
                 <div class="redirect-card">
                     <h2>🔗 Módulo de Descargas</h2>
-                    <p>Ve a la página especial para gestionar enlaces:</p>
-                    <a href="/descarga.html" class="btn-ir">📥 IR A DESCARGAS</a>
+                    <p>Para descargar videos desde internet usa la página especial:</p>
+                    <a href="/descarga.html" class="btn-link">📥 IR A DESCARGAS</a>
                 </div>
             </div>
 
