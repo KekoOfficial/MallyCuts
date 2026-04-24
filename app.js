@@ -5,17 +5,19 @@ const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
 
-// Cargamos configuración con verificación
+// Cargamos configuración
 let config;
 try {
     config = require('./config');
-    console.log("✅ Archivo de configuración cargado correctamente");
+    console.log("✅ Archivo de configuración cargado");
+    console.log("📂 Carpeta originales:", config.ORIGINAL_FOLDER);
+    console.log("📂 Carpeta procesados:", config.PROCESADOS_FOLDER);
 } catch (error) {
-    console.error("❌ ERROR: No se pudo cargar el archivo config.js - Revisa que exista y no tenga errores");
+    console.error("❌ ERROR: No se pudo cargar config.js:", error.message);
     process.exit(1);
 }
 
-// Cargamos módulos de la carpeta core con verificación
+// Cargamos módulos de la carpeta core
 let procesarEnlace, extraerSegmento, enviarADosCanales;
 try {
     const descargar = require('./core/descargar');
@@ -26,9 +28,9 @@ try {
     extraerSegmento = cortar.extraerSegmento;
     enviarADosCanales = enviar.enviarADosCanales;
     
-    console.log("✅ Todos los módulos de la carpeta core cargados correctamente");
+    console.log("✅ Módulos de la carpeta core cargados correctamente");
 } catch (error) {
-    console.error("❌ ERROR: Faltan archivos o hay errores en la carpeta core:", error.message);
+    console.error("❌ ERROR al cargar módulos core:", error.message);
     process.exit(1);
 }
 
@@ -43,16 +45,16 @@ app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ extended: true, limit: '500mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Capturamos errores de solicitud
+// Capturamos errores generales
 app.use((err, req, res, next) => {
-    console.error("❌ ERROR GENERAL EN LA SOLICITUD:", err.message);
-    res.json({ status: 'error', mensaje: '❌ Ocurrió un error al procesar la solicitud' });
+    console.error("❌ ERROR GENERAL:", err.message);
+    res.json({ status: 'error', mensaje: '❌ Ocurrió un error en el servidor' });
 });
 
-// Creamos las carpetas necesarias
+// Creamos las carpetas si no existen
 const carpetas = [
-    config.ORIGINAL_FOLDER || './videos/originales',
-    config.PROCESADOS_FOLDER || './videos/procesados'
+    config.ORIGINAL_FOLDER,
+    config.PROCESADOS_FOLDER
 ];
 
 carpetas.forEach(carpeta => {
@@ -64,7 +66,7 @@ carpetas.forEach(carpeta => {
             console.log(`📁 Carpeta ya existe: ${carpeta}`);
         }
     } catch (error) {
-        console.error(`❌ ERROR al crear la carpeta ${carpeta}:`, error.message);
+        console.error(`❌ No se pudo crear la carpeta ${carpeta}:`, error.message);
     }
 });
 
@@ -73,15 +75,14 @@ carpetas.forEach(carpeta => {
 // ==============================================
 const almacenamientoArchivos = multer.diskStorage({
     destination: (req, file, cb) => {
-        const ruta = config.ORIGINAL_FOLDER || './videos/originales';
-        console.log(`📂 Guardando archivo en: ${ruta}`);
-        cb(null, ruta);
+        console.log("📂 Guardando archivo en carpeta de originales");
+        cb(null, config.ORIGINAL_FOLDER);
     },
     filename: (req, file, cb) => {
         let tituloArchivo = req.body.titulo?.trim() || 'video_sin_titulo';
         tituloArchivo = tituloArchivo.replace(/[<>:"/\\|?*\n\r]/g, ' ').substring(0, 100);
         const nombreFinal = `${tituloArchivo}_${Date.now()}.mp4`;
-        console.log(`📄 Nombre final del archivo: ${nombreFinal}`);
+        console.log("📄 Nombre del archivo a guardar:", nombreFinal);
         cb(null, nombreFinal);
     }
 });
@@ -89,11 +90,11 @@ const almacenamientoArchivos = multer.diskStorage({
 const filtroArchivos = (req, file, cb) => {
     const tiposPermitidos = ['video/mp4', 'video/mkv', 'video/avi', 'video/mov'];
     if (tiposPermitidos.includes(file.mimetype)) {
-        console.log(`✅ Tipo de archivo válido: ${file.mimetype}`);
+        console.log("✅ Tipo de archivo válido:", file.mimetype);
         cb(null, true);
     } else {
-        console.log(`❌ Tipo de archivo no permitido: ${file.mimetype}`);
-        cb(new Error('Solo se permiten archivos de video'), false);
+        console.log("❌ Tipo de archivo no permitido:", file.mimetype);
+        cb(new Error('Solo se aceptan archivos de video'), false);
     }
 };
 
@@ -101,17 +102,19 @@ const subirArchivo = multer({
     storage: almacenamientoArchivos,
     fileFilter: filtroArchivos,
     limits: { fileSize: 500 * 1024 * 1024 }
-}).single('video'); // Especificamos que es un solo archivo
+}).single('video');
 
 // ==============================================
 // RUTA PARA PROCESAR ARCHIVOS SUBIDOS
 // ==============================================
 app.post('/procesar', (req, res) => {
+    console.log("\n📥 RECIBIDA SOLICITUD DE PROCESAR ARCHIVO");
+    
     subirArchivo(req, res, async (err) => {
         try {
-            // Si hay error al subir el archivo
+            // Error al subir el archivo
             if (err) {
-                console.error("❌ ERROR AL SUBIR ARCHIVO:", err.message);
+                console.error("❌ ERROR AL SUBIR EL ARCHIVO:", err.message);
                 return res.json({
                     status: 'error',
                     mensaje: `❌ Error al subir: ${err.message}`
@@ -119,39 +122,39 @@ app.post('/procesar', (req, res) => {
             }
 
             // Verificamos que tengamos los datos
+            console.log("📋 Datos recibidos:");
+            console.log("Título:", req.body?.titulo);
+            console.log("Archivo:", req.file?.filename);
+
             if (!req.body?.titulo || !req.file) {
-                console.error("❌ Faltan datos: Título o archivo no recibidos");
+                console.error("❌ Faltan datos: título o archivo no enviados");
                 return res.json({
                     status: 'error',
-                    mensaje: '❌ Debes ingresar un título y seleccionar un archivo'
+                    mensaje: '❌ Debes completar el título y seleccionar el archivo'
                 });
             }
-
-            console.log("\n" + "=".repeat(60));
-            console.log("📤 PROCESANDO ARCHIVO SUBIDO");
-            console.log(`📝 Título: ${req.body.titulo}`);
-            console.log(`📂 Archivo: ${req.file.filename}`);
-            console.log("=".repeat(60));
 
             const tituloOriginal = req.body.titulo.trim();
             const rutaArchivoOriginal = path.join(config.ORIGINAL_FOLDER, req.file.filename);
+            console.log("📂 Ruta completa del archivo:", rutaArchivoOriginal);
 
-            // Verificamos que el archivo se haya guardado
+            // Verificamos que el archivo se guardó
             if (!fs.existsSync(rutaArchivoOriginal)) {
-                console.error("❌ El archivo guardado no se encuentra en la ruta");
+                console.error("❌ El archivo no se guardó correctamente en la ruta indicada");
                 return res.json({
                     status: 'error',
-                    mensaje: '❌ No se pudo guardar el archivo correctamente'
+                    mensaje: '❌ No se pudo guardar el archivo'
                 });
             }
 
-            // Obtenemos la duración del video
+            // Obtenemos duración del video
+            console.log("⏱️ Obteniendo duración del video...");
             let duracionTotal;
             try {
                 duracionTotal = await obtenerDuracionVideo(rutaArchivoOriginal);
-                console.log(`⏱️ Duración total: ${Math.round(duracionTotal)} segundos`);
+                console.log(`✅ Duración obtenida: ${Math.round(duracionTotal)} segundos`);
             } catch (error) {
-                console.error("❌ No se pudo leer la duración del video:", error.message);
+                console.error("❌ No se pudo leer la duración:", error.message);
                 return res.json({
                     status: 'error',
                     mensaje: '❌ El archivo de video está dañado o no es válido'
@@ -160,7 +163,7 @@ app.post('/procesar', (req, res) => {
 
             const duracionSegmento = config.CLIP_DURATION || 60;
             const cantidadPartes = Math.floor(duracionTotal / duracionSegmento) + 1;
-            console.log(`✂️ Se generarán ${cantidadPartes} partes de ${duracionSegmento} segundos`);
+            console.log(`✂️ Se generarán ${cantidadPartes} partes de ${duracionSegmento} segundos cada una`);
 
             // Procesamos cada parte
             const listaPartes = [];
@@ -170,8 +173,9 @@ app.post('/procesar', (req, res) => {
                 let rutaParte;
                 try {
                     rutaParte = await extraerSegmento(rutaArchivoOriginal, numeroParte, tituloOriginal);
+                    console.log(`✅ Parte ${numeroParte} generada: ${rutaParte}`);
                 } catch (error) {
-                    console.error(`❌ Error al cortar la parte ${numeroParte}:`, error.message);
+                    console.error(`❌ Error al generar la parte ${numeroParte}:`, error.message);
                     continue;
                 }
                 
@@ -184,17 +188,17 @@ app.post('/procesar', (req, res) => {
             }
 
             if (listaPartes.length === 0) {
-                console.error("❌ No se generó ninguna parte válida");
+                console.error("❌ No se pudo generar ninguna parte del video");
                 return res.json({
                     status: 'error',
-                    mensaje: '❌ No se pudo generar las partes del video'
+                    mensaje: '❌ Error al cortar el video'
                 });
             }
 
-            console.log(`✅ Se generaron ${listaPartes.length} partes válidas`);
+            console.log(`✅ Total de partes válidas generadas: ${listaPartes.length}`);
 
             // Enviamos a Telegram
-            console.log("\n📤 ENVIANDO A LOS CANALES DE TELEGRAM");
+            console.log("📤 Enviando partes a los canales...");
             for (const parte of listaPartes) {
                 const mensajeTelegram = `🎬 <b>${tituloOriginal}</b>
 📌 <b>Parte:</b> ${parte.numero} de ${listaPartes.length}
@@ -203,6 +207,7 @@ app.post('/procesar', (req, res) => {
 
                 try {
                     await enviarADosCanales(parte.ruta, mensajeTelegram, parte.numero);
+                    console.log(`✅ Parte ${parte.numero} enviada correctamente`);
                 } catch (error) {
                     console.error(`❌ Error al enviar la parte ${parte.numero}:`, error.message);
                 }
@@ -210,6 +215,7 @@ app.post('/procesar', (req, res) => {
                 // Eliminamos archivo temporal
                 if (fs.existsSync(parte.ruta)) {
                     fs.unlinkSync(parte.ruta);
+                    console.log(`🗑️ Parte ${parte.numero} eliminada del disco`);
                 }
 
                 await new Promise(resolve => setTimeout(resolve, 1500));
@@ -222,15 +228,13 @@ app.post('/procesar', (req, res) => {
             }
 
             console.log("\n✅ ¡PROCESO FINALIZADO CON ÉXITO!");
-            console.log("=".repeat(60) + "\n");
-
             return res.json({
                 status: 'ok',
                 mensaje: '✅ El archivo fue procesado y enviado correctamente'
             });
 
         } catch (error) {
-            console.error("\n❌ ERROR GENERAL AL PROCESAR ARCHIVO:", error.message);
+            console.error("\n❌ ERROR GENERAL AL PROCESAR:", error.message);
             return res.json({
                 status: 'error',
                 mensaje: `❌ Ocurrió un error: ${error.message}`
@@ -243,26 +247,24 @@ app.post('/procesar', (req, res) => {
 // RUTA PARA PROCESAR ENLACES
 // ==============================================
 app.post('/procesar-enlace', async (req, res) => {
+    console.log("\n📥 RECIBIDA SOLICITUD DE PROCESAR ENLACE");
     try {
         const { enlace } = req.body;
+        console.log("🔗 Enlace recibido:", enlace);
 
         if (!enlace || enlace.trim() === '') {
-            console.error("❌ Enlace vacío o no recibido");
+            console.error("❌ Enlace vacío");
             return res.json({
                 status: 'error',
                 mensaje: '❌ Debes ingresar un enlace válido'
             });
         }
 
-        console.log("\n" + "=".repeat(60));
-        console.log("🔗 PROCESANDO ENLACE RECIBIDO");
-        console.log(`🌐 Enlace: ${enlace}`);
-        console.log("=".repeat(60));
-
+        console.log("⏳ Iniciando procesamiento del enlace...");
         const resultado = await procesarEnlace(enlace.trim());
 
         if (resultado) {
-            console.log("\n✅ ¡ENLACE PROCESADO CON ÉXITO!");
+            console.log("✅ Enlace procesado correctamente");
             return res.json({
                 status: 'ok',
                 mensaje: '✅ El enlace fue procesado y enviado correctamente'
@@ -312,7 +314,7 @@ app.listen(PUERTO, () => {
     console.log("=".repeat(60) + "\n");
 });
 
-// Capturamos cualquier error que ocurra
+// Capturamos cualquier error
 process.on('uncaughtException', (error) => {
     console.error("\n❌ ERROR NO CONTROLADO:", error.message);
 });
