@@ -1,0 +1,285 @@
+/* ==============================================
+   🎨 ESTILOS GENERALES - MALLYCUTS
+   ============================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+/* ==============================================
+   📦 CONTENEDOR PRINCIPAL
+   ============================================== */
+.contenedor-principal {
+    background-color: #1e293b;
+    width: 100%;
+    max-width: 620px;
+    border-radius: 20px;
+    padding: 40px 30px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ==============================================
+   📝 TÍTULO PRINCIPAL
+   ============================================== */
+h1 {
+    color: #38bdf8;
+    text-align: center;
+    font-size: 2.4rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 35px;
+    text-shadow: 0 3px 10px rgba(56, 189, 248, 0.2);
+}
+
+/* ==============================================
+   🧩 SECCIONES DE CONTENIDO
+   ============================================== */
+.seccion {
+    background-color: #27374d;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.seccion:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.seccion h2 {
+    color: #f1f5f9;
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ==============================================
+   📋 CAMPOS DEL FORMULARIO
+   ============================================== */
+.campo {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+label {
+    color: #f1f5f9;
+    font-size: 1.05rem;
+    font-weight: 500;
+    padding-left: 5px;
+}
+
+/* Campo de texto y enlace */
+input[type="text"],
+input[type="url"] {
+    padding: 16px 18px;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    background-color: #334155;
+    color: #f8fafc;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+input[type="text"]:focus,
+input[type="url"]:focus {
+    outline: none;
+    border-color: #38bdf8;
+    background-color: #27374d;
+    box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.1);
+}
+
+input[type="text"]::placeholder,
+input[type="url"]::placeholder {
+    color: #94a3b8;
+}
+
+/* Texto de ayuda pequeño */
+.texto-ayuda {
+    color: #94a3b8;
+    font-size: 0.85rem;
+    margin-top: 5px;
+    padding-left: 5px;
+}
+
+/* ==============================================
+   📤 ÁREA DE SUBIDA DE ARCHIVOS
+   ============================================== */
+.area-subida {
+    position: relative;
+    padding: 40px 25px;
+    border: 2px dashed #475569;
+    border-radius: 12px;
+    background-color: #334155;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.area-subida:hover,
+.area-subida.activo {
+    border-color: #38bdf8;
+    background-color: #27374d;
+}
+
+.area-subida input[type="file"] {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+#textoAyuda {
+    color: #94a3b8;
+    font-size: 1rem;
+    pointer-events: none;
+}
+
+.nombre-archivo {
+    color: #7dd3fc;
+    font-size: 1rem;
+    font-weight: 500;
+    display: inline-block;
+    pointer-events: none;
+}
+
+/* ==============================================
+   📢 ZONA DE MENSAJES
+   ============================================== */
+.zona-mensajes {
+    margin-top: 10px;
+}
+
+.mensaje {
+    padding: 16px 20px;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: 500;
+    font-size: 1rem;
+    display: none;
+    animation: aparecer 0.4s ease;
+    line-height: 1.5;
+}
+
+@keyframes aparecer {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 🟡 Mensaje de alerta / advertencia */
+.alerta {
+    background-color: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+/* 🔵 Mensaje de procesando */
+.procesando {
+    background-color: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Animación de carga */
+.procesando::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+    animation: cargando 1.6s infinite linear;
+}
+
+@keyframes cargando {
+    100% {
+        left: 100%;
+    }
+}
+
+/* 🟢 Mensaje de éxito */
+.exito {
+    background-color: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+/* 🔴 Mensaje de error */
+.error {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* ==============================================
+   📱 ADAPTACIÓN A PANTALLAS PEQUEÑAS
+   ============================================== */
+@media (max-width: 480px) {
+    .contenedor-principal {
+        padding: 25px 20px;
+    }
+
+    h1 {
+        font-size: 1.8rem;
+        letter-spacing: 2px;
+    }
+
+    .seccion {
+        padding: 20px 15px;
+    }
+
+    .seccion h2 {
+        font-size: 1.15rem;
+    }
+
+    input[type="text"],
+    input[type="url"] {
+        padding: 14px 16px;
+        font-size: 0.95rem;
+    }
+
+    .area-subida {
+        padding: 30px 15px;
+    }
+
+    .mensaje {
+        font-size: 0.9rem;
+        padding: 14px 15px;
+    }
+}
