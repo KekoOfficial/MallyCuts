@@ -1,60 +1,96 @@
-// 🤖 CONFIGURACIÓN DEL BOT Y CANALES
-// Acá se definen todos los parámetros de funcionamiento del sistema
+// ==============================================
+// ⚙️ ARCHIVO DE CONFIGURACIÓN - MALLYCUTS
+// ==============================================
+// Sistema automatizado de procesamiento y envío
+// Configuración completa y organizada
+// ==============================================
 
-// Importamos módulos necesarios
 const fs = require('fs');
 const path = require('path');
 
-module.exports = {
-    // 🗝️ TU TOKEN DEL BOT DE TELEGRAM
+// ==============================================
+// 🤖 CONFIGURACIÓN DEL BOT Y CANALES
+// ==============================================
+
+const CONFIGURACION_TELEGRAM = {
+    // 🗝️ Token de acceso al Bot
     TOKEN: "8459092113:AAFFJ0b7H5gFzYjgYGk_g_57cI709dhVRhI",
 
-    // 📢 CANAL PÚBLICO (Lo que ven todos, tu marca)
+    // 📢 Canal Público (Marca / Audiencia)
     CANAL_PUBLICO: {
         ID: "-1003983527231",
         NOMBRE: "EnseñaEn15"
     },
 
-    // 🔒 CANAL PRIVADO (Solo acceso tuyo, donde se guardan los archivos)
+    // 🔒 Canal Privado (Almacenamiento / Respaldo)
     CANAL_PRIVADO: {
         ID: "-1003706372741"
-    },
-
-    // ⚙️ AJUSTES GENERALES DE PROCESAMIENTO
-    CLIP_DURATION: 60,        // Duración de cada parte del video, expresada en segundos
-    MAX_RETRIES: 3,           // Cantidad máxima de intentos si falla el envío de un archivo
-    TIMEOUT_SEND: 300000,     // Tiempo máximo de espera por cada operación de envío (5 minutos)
-    TAMANIO_MAXIMO: 50 * 1024 * 1024, // Límite permitido por la API de Telegram: 50MB por archivo
-
-    // 📂 RUTAS DE CARPETAS DE TRABAJO
-    TEMP_FOLDER: path.join(__dirname, 'videos', 'output'),          // Donde se guardan temporalmente las partes generadas
-    ORIGINAL_FOLDER: path.join(__dirname, 'videos', 'originales'),   // Donde se guardan los videos descargados o subidos
-    INPUT_FOLDER: path.join(__dirname, 'videos', 'input'),          // Carpeta de entrada para los archivos que se suben manualmente
-    TEMP_UPLOAD_FOLDER: path.join(__dirname, 'temp_uploads'),        // Carpeta temporal usada durante el proceso de subida
-
-    // ⚙️ AJUSTES ADICIONALES DEL SISTEMA
-    BORRAR_ARCHIVOS_DESPUES: true,    // Poné en false si querés conservar todos los archivos después de procesarlos
-    VELOCIDAD_PREDETERMINADA: 1.3,    // Velocidad de reproducción que se aplicará automáticamente a todos los videos
-    TEXTO_MARCA_PREDETERMINADA: "EnseñaEn15" // Nombre de tu marca que se agregará a los mensajes y archivos
+    }
 };
 
-// 🛠️ CREAMOS TODAS LAS CARPETAS AUTOMÁTICAMENTE SI NO EXISTEN
-const carpetas = [
-    module.exports.TEMP_FOLDER,
-    module.exports.ORIGINAL_FOLDER,
-    module.exports.INPUT_FOLDER,
-    module.exports.TEMP_UPLOAD_FOLDER
-];
+// ==============================================
+// ⚙️ PARÁMETROS DE FUNCIONAMIENTO
+// ==============================================
 
-carpetas.forEach(rutaCarpeta => {
+const PARAMETROS_SISTEMA = {
+    // Duración de cada fragmento en segundos
+    DURACION_POR_PARTE: 60,
+    
+    // Control de errores y tiempos
+    INTENTOS_MAXIMOS: 3,
+    TIEMPO_ESPERA_ENVIO: 300000, // 5 minutos
+    TAMANIO_MAXIMO_POR_ARCHIVO: 50 * 1024 * 1024, // Límite API Telegram: 50MB
+
+    // Ajustes de edición de video
+    VELOCIDAD_VIDEO: 1.3,
+    TEXTO_MARCA_AGUA: "EnseñaEn15",
+
+    // Limpieza automática
+    ELIMINAR_ARCHIVOS_AL_TERMINAR: true
+};
+
+// ==============================================
+// 📂 RUTAS DE CARPETAS DE TRABAJO
+// ==============================================
+
+const RUTAS_CARPETAS = {
+    CARPETA_TEMPORAL:     path.join(__dirname, 'videos', 'output'),
+    CARPETA_ORIGINALES:   path.join(__dirname, 'videos', 'originales'),
+    CARPETA_ENTRADA:      path.join(__dirname, 'videos', 'input'),
+    CARPETA_SUBIDAS_TEMP: path.join(__dirname, 'temp_uploads')
+};
+
+// ==============================================
+// 📦 EXPORTAMOS TODO PARA USAR EN EL SISTEMA
+// ==============================================
+
+module.exports = {
+    // Unificamos todo en un solo objeto para facilitar la importación
+    ...CONFIGURACION_TELEGRAM,
+    ...PARAMETROS_SISTEMA,
+    ...RUTAS_CARPETAS
+};
+
+// ==============================================
+// 🛠️ CREACIÓN AUTOMÁTICA DE ESTRUCTURA
+// ==============================================
+
+const TODAS_LAS_RUTAS = Object.values(RUTAS_CARPETAS);
+
+TODAS_LAS_RUTAS.forEach(ruta => {
     try {
-        if (!fs.existsSync(rutaCarpeta)) {
-            fs.mkdirSync(rutaCarpeta, { recursive: true, mode: 0o777 });
-            console.log(`📂 Carpeta creada correctamente: ${rutaCarpeta}`);
+        if (!fs.existsSync(ruta)) {
+            fs.mkdirSync(ruta, { recursive: true, mode: 0o777 });
+            console.log(`📂 [CONFIG] Carpeta creada: ${ruta}`);
         } else {
-            console.log(`✅ Carpeta ya disponible: ${rutaCarpeta}`);
+            console.log(`✅ [CONFIG] Carpeta lista: ${ruta}`);
         }
     } catch (error) {
-        console.error(`❌ Error al crear o acceder a la carpeta: ${rutaCarpeta}`, error.message);
+        console.error(`❌ [CONFIG] Error en: ${ruta}`, error.message);
     }
 });
+
+// ==============================================
+// ✅ CONFIGURACIÓN CARGADA CORRECTAMENTE
+// ==============================================
+console.log("🚀 Configuración de MallyCuts cargada y lista para funcionar");
