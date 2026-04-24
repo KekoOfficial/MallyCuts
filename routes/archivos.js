@@ -1,5 +1,5 @@
 // 📤 RUTAS Y FUNCIONES PARA PROCESAR ARCHIVOS SUBIDOS
-// Versión actualizada para coincidir con la nueva configuración
+// Versión corregida - Compatible con config.js actual
 
 const express = require('express');
 const router = express.Router();
@@ -7,24 +7,31 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Importamos módulos internos
+// Importamos módulos
 const log = require('../js/logger');
-const config = require('../config'); // Tu archivo de configuración nuevo
+const config = require('../config');
 const { obtenerDuracionVideo, formatoDuracion, archivoEsValido, obtenerTamanoArchivoMB } = require('./utilidades');
 const { extraerSegmento } = require('../core/cortar');
 const { enviarADosCanales } = require('../core/enviar');
 
 // ==============================================
-// CONFIGURACIÓN DE MULTER PARA SUBIDA DE ARCHIVOS
+// 💡 SOLUCIÓN DEFINITIVA: Definimos las rutas
 // ==============================================
+// Como en tu config.js las rutas están dentro de objetos separados,
+// las traemos y aseguramos que existan para que Multer no falle.
 
-// 💡 IMPORTANTE: Usamos las variables EXACTAS que definiste en config.js
-const carpetaDestino = config.INPUT_FOLDER;
+const CARPETA_ENTRADA = config.INPUT_FOLDER || path.join(__dirname, '..', 'videos', 'input');
+const CARPETA_TEMPORAL = config.TEMP_FOLDER || path.join(__dirname, '..', 'videos', 'output');
+
+// ==============================================
+// CONFIGURACIÓN DE MULTER
+// ==============================================
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         log.detalle(`Preparando espacio para guardar el archivo...`);
-        cb(null, carpetaDestino);
+        // ✅ Ahora sí pasamos un STRING válido
+        cb(null, CARPETA_ENTRADA);
     },
     filename: function (req, file, cb) {
         const titulo = req.body.titulo ? req.body.titulo.replace(/[<>:"/\\|?*\n\r\t]/g, ' ').trim() : 'video_sin_titulo';
@@ -35,7 +42,10 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-    const formatosPermitidos = ['video/mp4', 'video/mkv', 'video/avi', 'video/mov', 'video/flv', 'video/wmv', 'video/mpeg', 'video/webm'];
+    const formatosPermitidos = [
+        'video/mp4', 'video/mkv', 'video/avi', 'video/mov',
+        'video/flv', 'video/wmv', 'video/mpeg', 'video/webm'
+    ];
     if (formatosPermitidos.includes(file.mimetype)) {
         log.exito(`Formato de archivo válido: ${file.mimetype}`);
         cb(null, true);
@@ -45,7 +55,6 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// Subida con límite de tamaño
 const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
@@ -55,7 +64,7 @@ const upload = multer({
 }).single('archivo_video');
 
 // ==============================================
-// RUTA PRINCIPAL DE PROCESAMIENTO
+// RUTA PRINCIPAL
 // ==============================================
 
 router.post('/procesar', (req, res) => {
@@ -74,7 +83,7 @@ router.post('/procesar', (req, res) => {
                 });
             }
 
-            // Verificar que llegaron todos los datos
+            // Validaciones
             if (!req.file || !req.body.titulo) {
                 log.error('Faltan datos obligatorios');
                 return res.json({
@@ -89,21 +98,21 @@ router.post('/procesar', (req, res) => {
             log.detalle(`Tamaño del archivo: ${(req.file.size / (1024*1024)).toFixed(2)} MB`);
 
             // Ruta del archivo original
-            const rutaOriginal = path.join(carpetaDestino, req.file.filename);
+            const rutaOriginal = path.join(CARPETA_ENTRADA, req.file.filename);
             const tituloLimpio = req.body.titulo.replace(/[<>:"/\\|?*\n\r\t]/g, ' ').trim();
 
-            // Obtener duración total
+            // Obtener duración
             log.info('🔍 Analizando archivo para obtener información...');
             const duracionTotal = await obtenerDuracionVideo(rutaOriginal);
             log.exito(`Duración total del video: ${formatoDuracion(duracionTotal)}`);
 
-            // Calcular cantidad de partes
+            // Calcular partes
             const duracionPorParte = config.DURACION_POR_PARTE || 60;
             const cantidadPartes = Math.ceil(duracionTotal / duracionPorParte);
             log.info(`📋 Se dividirá el video en ${cantidadPartes} partes de ${duracionPorParte} segundos cada una`);
 
             // ==============================================
-            // INICIAR CORTE Y PROCESAMIENTO
+            // CORTE Y PROCESAMIENTO
             // ==============================================
             log.separador();
             log.info('✂️ INICIANDO CORTE Y PROCESAMIENTO DE PARTES');
@@ -115,23 +124,17 @@ router.post('/procesar', (req, res) => {
                 log.info(`\n⚙️ Procesando parte ${i} de ${cantidadPartes}`);
 
                 try {
-                    // 💡 CORRECCIÓN AQUÍ: Usamos TEMP_FOLDER que existe en tu config.js
                     const rutaParte = await extraerSegmento(
                         rutaOriginal,
                         i,
-                        tituloLimpio,
-                        duracionPorParte,
-                        config.VELOCIDAD_VIDEO || 1.0
+                        tituloLimpio
                     );
 
                     if (rutaParte && archivoEsValido(rutaParte)) {
-                        partesGeneradas.push({
-                            numero: i,
-                            ruta: rutaParte
-                        });
+                        partesGeneradas.push({ numero: i, ruta: rutaParte });
                         log.exito(`Parte ${i} generada correctamente | Tamaño: ${obtenerTamanoArchivoMB(rutaParte)}`);
                     } else {
-                        throw new Error(`El archivo generado para la parte ${i} no es válido`);
+                        throw new Error(`Archivo generado no válido para la parte ${i}`);
                     }
 
                 } catch (error) {
@@ -139,18 +142,17 @@ router.post('/procesar', (req, res) => {
                 }
             }
 
-            // Verificar si se generaron partes
             if (partesGeneradas.length === 0) {
-                throw new Error('No se pudo generar ninguna parte válida del video');
+                throw new Error('No se pudo generar ninguna parte válida');
             }
 
-            log.exito(`\n✅ Proceso de corte finalizado. Se generaron ${partesGeneradas.length} partes válidas`);
+            log.exito(`\n✅ Proceso de corte finalizado. Generadas ${partesGeneradas.length} partes válidas`);
 
             // ==============================================
             // ENVÍO A TELEGRAM
             // ==============================================
             log.separador();
-            log.info('📤 INICIANDO ENVÍO A LOS CANALES DE TELEGRAM');
+            log.info('📤 INICIANDO ENVÍO A LOS CANALES');
             log.separador();
 
             for (const parte of partesGeneradas) {
@@ -158,30 +160,28 @@ router.post('/procesar', (req, res) => {
 🎬 <b>${tituloLimpio}</b>
 📌 Parte ${parte.numero} de ${partesGeneradas.length}
 ⚡ Velocidad: ${config.VELOCIDAD_VIDEO}x
-🔹 ${config.TEXTO_MARCA_AGUA || 'Procesado automáticamente'}
+🔹 ${config.TEXTO_MARCA_AGUA}
                 `.trim();
 
                 try {
                     await enviarADosCanales(parte.ruta, mensaje, parte.numero);
                     
-                    // Borrar archivo temporal si está configurado
-                    if (config.ELIMINAR_ARCHIVOS_AL_TERMINAR && fs.existsSync(parte.ruta)) {
+                    if (config.BORRAR_ARCHIVOS_DESPUES && fs.existsSync(parte.ruta)) {
                         fs.unlinkSync(parte.ruta);
-                        log.detalle(`🗑️ Archivo temporal de la parte ${parte.numero} eliminado`);
+                        log.detalle(`🗑️ Archivo temporal parte ${parte.numero} eliminado`);
                     }
 
                 } catch (error) {
-                    log.error(`Error al enviar la parte ${parte.numero}`, error);
+                    log.error(`Error al enviar parte ${parte.numero}`, error);
                 }
 
-                // Espera entre envíos
                 await new Promise(resolve => setTimeout(resolve, 3000));
             }
 
-            // Borrar archivo original
-            if (config.ELIMINAR_ARCHIVOS_AL_TERMINAR && fs.existsSync(rutaOriginal)) {
+            // Borrar original
+            if (config.BORRAR_ARCHIVOS_DESPUES && fs.existsSync(rutaOriginal)) {
                 fs.unlinkSync(rutaOriginal);
-                log.detalle(`🗑️ Archivo original eliminado del sistema`);
+                log.detalle(`🗑️ Archivo original eliminado`);
             }
 
             // ==============================================
@@ -193,7 +193,7 @@ router.post('/procesar', (req, res) => {
 
             return res.json({
                 status: 'ok',
-                mensaje: `¡Listo! Se procesaron y enviaron ${partesGeneradas.length} partes correctamente.`
+                mensaje: `¡Listo! Se procesaron y enviaron ${partesGeneradas.length} partes.`
             });
 
         } catch (errorGeneral) {
