@@ -35,7 +35,7 @@ async function extraerYEditarSegmento(rutaArchivo, numeroParte, titulo) {
                     {
                         filter: 'drawtext',
                         options: {
-                            text: 'EscenaEn15\\Dola IA', // <-- TEXTO FINAL
+                            text: 'EscenaEn15', // <-- TEXTO FINAL
                             fontfile: '/system/fonts/Roboto-Regular.ttf',
                             fontsize: 40,
                             fontcolor: 'white@0.8',
