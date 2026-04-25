@@ -1,5 +1,5 @@
 // ==============================================
-// 💥 MODO DIOS 2.0 - VERSIÓN ESTABLE FINAL
+// 💥 MODO DIOS 2.0 - VERSIÓN FINAL INDESTRUCTIBLE
 // ==============================================
 
 const ffmpeg = require('fluent-ffmpeg');
@@ -40,11 +40,11 @@ const dormir = ms => new Promise(r => setTimeout(r, ms));
 // ==============================================
 async function esperarArchivoCompleto(ruta) {
     let tamañoAnterior = -1;
-    while (true) {
+    for(let i=0; i<10; i++){ // Intentar hasta 10 veces (5 seg)
         const stats = await fs.stat(ruta).catch(() => ({ size: -1 }));
-        if (stats.size === tamañoAnterior) break;
+        if (stats.size === tamañoAnterior && stats.size > 0) break;
         tamañoAnterior = stats.size;
-        await dormir(800); // Un poco más de espera para seguridad
+        await dormir(500);
     }
 }
 
@@ -54,10 +54,9 @@ async function esperarArchivoCompleto(ruta) {
 async function enviarConRetry(ruta, titulo, parte, total) {
     for (let i = 1; i <= MAX_REINTENTOS; i++) {
         try {
-            // Verificar que el archivo existe antes de enviar
             await fs.access(ruta);
             await enviarVideo(ruta, titulo, parte, total);
-            return;
+            return true;
         } catch (err) {
             log.info(`⚠️ Reintento ${i}/${MAX_REINTENTOS} fallido`);
             if (i === MAX_REINTENTOS) throw err;
@@ -71,14 +70,14 @@ async function enviarConRetry(ruta, titulo, parte, total) {
 // ==============================================
 function obtenerNumeroParte(nombreArchivo) {
     const match = nombreArchivo.match(/_(\d+)\.mp4$/);
-    return match ? parseInt(match[1], 10) : 0;
+    return match ? parseInt(match[1], 10) : 9999;
 }
 
 // ==============================================
 // 🚀 FUNCIÓN PRINCIPAL
 // ==============================================
 async function extraerYEditarSegmento(rutaArchivo, tituloOriginal) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
 
         log.separador();
         log.inicio('💀 MODO DIOS 2.0 ACTIVADO');
@@ -88,6 +87,7 @@ async function extraerYEditarSegmento(rutaArchivo, tituloOriginal) {
         const rutaSalida = path.join(config.CARPETA_TEMPORAL, `${tituloArchivo}_%04d.mp4`);
 
         let procesando = true;
+        let archivosGenerados = [];
 
         // ==============================================
         // 📦 COLA DE ENVÍO
@@ -122,28 +122,28 @@ async function extraerYEditarSegmento(rutaArchivo, tituloOriginal) {
         // ==============================================
         const watcher = chokidar.watch(config.CARPETA_TEMPORAL, {
             ignoreInitial: true,
-            depth: 0
+            depth: 0,
+            interval: 500, // Revisar cada medio segundo
         });
 
         watcher.on('add', async (filePath) => {
             const nombreArchivo = path.basename(filePath);
             
-            // 🛡️ FILTRO DE SEGURIDAD: Solo archivos que terminan en .mp4 reales
-            if (!nombreArchivo.startsWith(tituloArchivo) || !nombreArchivo.endsWith('.mp4')) return;
-            
-            // 🛡️ Evitar capturar la plantilla "%04d"
+            if (!nombreArchivo.startsWith(tituloArchivo)) return;
+            if (!nombreArchivo.endsWith('.mp4')) return;
             if (nombreArchivo.includes('%')) return;
 
             try {
+                await dormir(1000); // Esperar un poquito más
                 await esperarArchivoCompleto(filePath);
+
                 const parte = obtenerNumeroParte(nombreArchivo);
-                
-                if(parte === 0) return; // Ignorar si no pudo leer número
-                
+                archivosGenerados.push(filePath);
+
                 log.info(`📦 Parte lista: ${parte}`);
 
                 cola.push({ ruta: filePath, parte });
-                cola.sort((a, b) => a.parte - b.parte); // Ordenar siempre
+                cola.sort((a, b) => a.parte - b.parte);
 
                 procesarCola();
 
@@ -153,11 +153,11 @@ async function extraerYEditarSegmento(rutaArchivo, tituloOriginal) {
         });
 
         // ==============================================
-        // 🎬 FFMPEG - MÁS ESTABLE
+        // 🎬 FFMPEG
         // ==============================================
         const comando = ffmpeg(rutaArchivo)
             .nativeFramerate()
-            .withOption('-threads', '2') // ⬅️ IMPORTANTE: No uses '0' en Termux, usa '2' o '4' para que no explote
+            .withOption('-threads', '2')
             .withOption('-nostdin')
             .withOption('-fflags', '+genpts')
             .withOption('-avoid_negative_ts', 'make_zero')
@@ -186,23 +186,37 @@ async function extraerYEditarSegmento(rutaArchivo, tituloOriginal) {
             .output(rutaSalida)
             .outputFormat('mp4');
 
-        // ==============================================
-        // 📊 PROGRESO
-        // ==============================================
         comando.on('progress', p => {
-            if (p.percent) {
-                log.detalle(`⚡ ${p.percent.toFixed(0)}%`);
-            }
+            if (p.percent) log.detalle(`⚡ ${p.percent.toFixed(0)}%`);
         });
 
         // ==============================================
-        // ✅ FIN
+        // ✅ FINALIZACIÓN CON SISTEMA DE RESCATE
         // ==============================================
         comando.on('end', async () => {
             procesando = false;
             log.exito('✅ FFMPEG TERMINADO');
 
-            // Esperar a que se vacíe la cola
+            // 🦸‍♂️ SISTEMA DE RESCATE: Si el watcher no detectó alguno, lo buscamos nosotros
+            await dormir(3000);
+            try {
+                const archivos = await fs.readdir(config.CARPETA_TEMPORAL);
+                for(const archivo of archivos){
+                    if(archivo.startsWith(tituloArchivo) && archivo.endsWith('.mp4') && !archivo.includes('%')){
+                        const rutaCompleta = path.join(config.CARPETA_TEMPORAL, archivo);
+                        
+                        if(!archivosGenerados.includes(rutaCompleta)){
+                            log.info(`🦸 RESCATE: Encontrado ${archivo}`);
+                            const parte = obtenerNumeroParte(archivo);
+                            cola.push({ ruta: rutaCompleta, parte });
+                            cola.sort((a, b) => a.parte - b.parte);
+                        }
+                    }
+                }
+                procesarCola();
+            } catch(e){}
+
+            // Esperar a que todo termine
             while (cola.length > 0 || enviando) {
                 await dormir(1000);
             }
@@ -212,10 +226,7 @@ async function extraerYEditarSegmento(rutaArchivo, tituloOriginal) {
             resolve(true);
         });
 
-        // ==============================================
-        // ❌ ERROR
-        // ==============================================
-        comando.on('error', (err, stdout, stderr) => {
+        comando.on('error', (err) => {
             log.error('💥 FFMPEG ERROR', err.message);
             watcher.close();
             reject(err);
