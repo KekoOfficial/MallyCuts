@@ -34,7 +34,7 @@ const CONFIGURACION_TELEGRAM = {
 
 const PARAMETROS_SISTEMA = {
     // Duración de cada fragmento en segundos
-    DURACION_POR_PARTE: 120,
+    DURACION_POR_PARTE: 20,
 
     // Control de errores y tiempos
     INTENTOS_MAXIMOS: 3,
