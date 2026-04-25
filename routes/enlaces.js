@@ -1,23 +1,34 @@
+// ==============================================
+// 📂 GESTOR DE RUTAS - MALLYCUTS
+// ==============================================
+// Aquí se organizan y exportan todas las rutas
+// ==============================================
+
 const express = require('express');
 const router = express.Router();
-const log = require('../js/logger');
 
-// 🔗 Ruta para descargar desde link
-router.post('/procesar', async (req, res) => {
-    try {
-        const { url, titulo } = req.body;
-        
-        // Aquí iría el código de descarga
-        log.info(`Solicitud: ${titulo} | ${url}`);
+// ==============================================
+// 📥 IMPORTAR RUTAS INDIVIDUALES
+// ==============================================
+const rutaUpload   = require('./upload');   // Subir archivos
+const rutaProcesar = require('./archivos'); // Procesar / Enviar
+const rutaTitulo   = require('./titulo');   // Generar títulos
+const rutaTelegram = require('./telegram'); // Funciones Telegram
 
-        res.json({ 
-            status: 'ok', 
-            mensaje: 'Link recibido y listo para descargar' 
-        });
+// ==============================================
+// 🔗 CONECTAR LAS RUTAS
+// ==============================================
 
-    } catch (error) {
-        res.json({ status: 'error', mensaje: error.message });
-    }
-});
+// 📤 Ruta para subir archivos al servidor
+router.use('/upload', rutaUpload);
 
+// 🎬 Ruta principal de procesamiento (donde está el /procesar)
+router.use('/', rutaProcesar);
+
+// 📛 Ruta utilitaria para títulos (opcional, por si la usas desde web)
+router.use('/titulo', rutaTitulo);
+
+// ==============================================
+// 📦 EXPORTAR PARA USAR EN APP.JS
+// ==============================================
 module.exports = router;
