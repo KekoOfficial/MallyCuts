@@ -1,21 +1,67 @@
 // ==============================================
-// ⚡ MODO MISIL - VELOCIDAD MÁXIMA TERMUX
+// 💥 MODO DIOS - VELOCIDAD Y ESTABILIDAD TOTAL
 // ==============================================
 
 const ffmpeg = require('fluent-ffmpeg');
 const path = require('path');
 const log = require('../js/logger');
-const config = require('../config');
+const config = require('../routes/config');
 const fs = require('fs').promises;
+const chokidar = require('chokidar'); // 👈 Para detectar archivos en tiempo real
 
 // ✅ IMPORTAR MÓDULOS
 const { enviarVideo } = require('../routes/telegram');
 const { limpiarNombreParaArchivo } = require('../routes/titulo');
 
 // ==============================================
-// ⏱️ TIEMPO DE ESPERA ENTRE VIDEOS (5 SEGUNDOS)
+// ⚙️ CONFIGURACIÓN DIOS
 // ==============================================
-const ESPERA_ENTRE_VIDEOS = 5000; // 5000 milisegundos = 5 segundos
+const ESPERA_ENTRE_VIDEOS = 5000; // 5s
+const INTENTOS_MAXIMOS = 3;
+
+// ==============================================
+// 🧠 FUNCIÓN: AJUSTE DE AUDIO INTELIGENTE
+// ==============================================
+function generarFiltroAudio(velocidad) {
+    let filtros = [];
+    let vel = velocidad;
+    
+    // Soporta velocidades mayores a 2x encadenando filtros
+    while (vel > 2.0) {
+        filtros.push('atempo=2.0');
+        vel /= 2;
+    }
+    while (vel < 0.5) {
+        filtros.push('atempo=0.5');
+        vel *= 2;
+    }
+    filtros.push(`atempo=${vel.toFixed(2)}`);
+    
+    return filtros.join(',');
+}
+
+// ==============================================
+// 🔁 FUNCIÓN: ENVIAR CON REINTENTOS AUTOMÁTICOS
+// ==============================================
+async function enviarConRetry(ruta, titulo, parte, total) {
+    for (let i = 0; i < INTENTOS_MAXIMOS; i++) {
+        try {
+            await enviarVideo(ruta, titulo, parte, total);
+            return true;
+        } catch (err) {
+            if (i === INTENTOS_MAXIMOS - 1) throw err;
+            log.warn(`⚠️ Falló envío. Reintento ${i+1}/${INTENTOS_MAXIMOS}...`);
+            await dormir(3000);
+        }
+    }
+}
+
+// ==============================================
+// 💤 FUNCIÓN DORMIR
+// ==============================================
+function dormir(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 // ==============================================
 // 🚀 FUNCIÓN PRINCIPAL
@@ -26,45 +72,104 @@ async function extraerYEditarSegmento(rutaArchivo, tituloOriginal) {
     return new Promise((resolve, reject) => {
         
         log.separador();
-        log.inicio('⚡ MODO MISIL ACTIVADO');
-        log.aviso('🔥 MODO: CORRER TODO PRIMERO | ENVIAR CON PAUSA');
+        log.inicio('💥 💀 MODO DIOS ACTIVADO');
+        log.aviso('⚡ PARALELO TOTAL: CORTA + ENVÍA A LA VEZ');
+        log.warn('🔥 Optimizado para archivos de HORAS');
 
-        // 🧹 LIMPIAR NOMBRE PARA EL ARCHIVO
+        // 🧹 LIMPIAR NOMBRE
         const tituloArchivo = limpiarNombreParaArchivo(tituloOriginal);
+        const rutaSalida = path.join(config.CARPETA_TEMPORAL, `${tituloArchivo}_%04d.mp4`);
 
         // ==============================================
-        // 🎬 COMANDO FFMPEG ULTRA RÁPIDO
+        // 👁️ SISTEMA DE OBSERVACIÓN (WATCHER)
+        // ==============================================
+        // Detecta cuando aparece un archivo nuevo y lo envía INMEDIATAMENTE
+        
+        let archivosProcesados = [];
+        let totalPartesEstimado = 0;
+
+        const watcher = chokidar.watch(config.CARPETA_TEMPORAL, {
+            persistent: true,
+            ignoreInitial: true,
+            depth: 0
+        });
+
+        watcher.on('add', async (filePath) => {
+            // Solo tocar los nuestros
+            if (!path.basename(filePath).startsWith(tituloArchivo)) return;
+
+            // Esperar a que el archivo se escriba completamente
+            await dormir(1000);
+
+            try {
+                // Extraer número de parte del nombre
+                const match = filePath.match(/(\d+)\.mp4$/);
+                const numeroParte = match ? parseInt(match[1]) : archivosProcesados.length + 1;
+                
+                log.info(`🚀 DETECTADO NUEVO: Parte ${numeroParte}`);
+
+                // 📤 ENVIAR CON SEGURIDAD
+                await enviarConRetry(filePath, tituloOriginal, numeroParte, '?');
+
+                // 🗑️ BORRAR
+                if(config.ELIMINAR_ARCHIVOS_AL_TERMINAR) {
+                    await fs.unlink(filePath);
+                    log.dato(`🗑️ Limpio: ${path.basename(filePath)}`);
+                }
+
+                archivosProcesados.push(filePath);
+
+                // ⏸️ PAUSA
+                log.info(`⏸️ Esperando ${ESPERA_ENTRE_VIDEOS/1000}s...`);
+                await dormir(ESPERA_ENTRE_VIDEOS);
+
+            } catch (error) {
+                log.error('💥 ERROR EN ENVÍO', error);
+            }
+        });
+
+        // ==============================================
+        // 🎬 COMANDO FFMPEG - MÁXIMA POTENCIA
         // ==============================================
         
         const comando = ffmpeg(rutaArchivo)
             
+            // 🔧 POTENCIA BRUTA
             .nativeFramerate()
             .withOption('-threads', '0')
             .withOption('-nostdin')
+            .withOption('-avioflags', 'direct')
+            .withOption('-fflags', '+genpts') // Soluciona errores de tiempo
+            .withOption('-avoid_negative_ts', 'make_zero')
 
+            // 🎞️ FILTROS
             .videoFilters([
                 `setpts=1/${config.VELOCIDAD_VIDEO}*PTS`,
                 `scale=-2:720, format=yuv420p`
             ])
-            .audioFilter(`atempo=${config.VELOCIDAD_VIDEO}`)
+            .audioFilter(generarFiltroAudio(config.VELOCIDAD_VIDEO)) // 👈 Audio Dios
 
+            // 📦 CODIFICACIÓN RÁPIDA
             .videoCodec('libx264')
             .addOption('-preset', 'ultrafast')
-            .addOption('-crf', '30')
+            .addOption('-crf', '32')
             .addOption('-tune', 'fastdecode')
-            .addOption('-max_muxing_queue_size', '1024')
+            .addOption('-max_muxing_queue_size', '8192')
+            .addOption('-movflags', '+faststart') // Mejora reproducción
 
+            // 🎧 AUDIO
             .audioCodec('aac')
             .audioBitrate('96k')
             .audioChannels(1)
 
+            // ✂️ SEGMENTOS
             .outputOptions([
                 `-f segment`,
                 `-segment_time ${config.DURACION_POR_PARTE}`,
                 `-reset_timestamps 1`
             ])
 
-            .output(path.join(config.CARPETA_TEMPORAL, `${tituloArchivo}_%03d.mp4`))
+            .output(rutaSalida)
             .outputFormat('mp4');
 
         // ==============================================
@@ -74,76 +179,36 @@ async function extraerYEditarSegmento(rutaArchivo, tituloOriginal) {
         comando.on('progress', (progreso) => {
             const por = progreso.percent || 0;
             if (por >= ultimoPorcentaje + 10) {
-                log.detalle(`⚡ Progreso: ${por.toFixed(0)}%`);
+                log.detalle(`⚡ Procesando: ${por.toFixed(0)}%`);
                 ultimoPorcentaje = por;
             }
         });
 
         // ==============================================
-        // ✅ CUANDO TERMINA DE CORTAR TODO
+        // ✅ FINALIZACIÓN
         // ==============================================
         comando.on('end', async () => {
-            log.exito('✅ TODOS LOS VIDEOS CORTADOS');
-            log.info('⏳ Preparando envío escalonado...');
+            log.exito('✅ ✅ CORTE FINALIZADO COMPLETAMENTE');
             
-            try {
-                // 📂 BUSCAR ARCHIVOS GENERADOS
-                const archivos = await fs.readdir(config.CARPETA_TEMPORAL);
-                const partes = archivos.filter(arch => arch.startsWith(tituloArchivo)).sort(); // Ordenados
-
-                if (partes.length === 0) throw new Error('No se encontraron archivos');
-
-                const totalPartes = partes.length;
-                log.inicio(`📤 Total a enviar: ${totalPartes} archivo(s)`);
-
-                // ==============================================
-                // 🔁 BUCLE DE ENVÍO CON PAUSA
-                // ==============================================
-                for (let i = 0; i < partes.length; i++) {
-                    const parte = partes[i];
-                    const rutaCompleta = path.join(config.CARPETA_TEMPORAL, parte);
-                    const numeroParte = i + 1;
-                    
-                    log.info(`📤 Enviando: ${numeroParte}/${totalPartes}`);
-                    
-                    // 🚀 ENVIAR VIDEO
-                    await enviarVideo(rutaCompleta, tituloOriginal, numeroParte, totalPartes);
-
-                    // 🗑️ BORRAR SI ESTÁ CONFIGURADO
-                    if(config.ELIMINAR_ARCHIVOS_AL_TERMINAR) {
-                        await fs.unlink(rutaCompleta);
-                    }
-
-                    // ⏸️ ESPERAR ANTES DE SIGUIENTE (SI NO ES EL ÚLTIMO)
-                    if (i < partes.length - 1) {
-                        log.info(`⏳ Esperando ${ESPERA_ENTRE_VIDEOS/1000}s...`);
-                        await dormir(ESPERA_ENTRE_VIDEOS);
-                    }
-                }
-
-                log.exito('✅ ✅ PROCESO FINALIZADO COMPLETO');
-                resolve(true);
-
-            } catch (error) {
-                log.error('💥 ERROR', error);
-                reject(error);
-            }
+            // Esperar a que terminen los últimos envíos
+            await dormir(5000);
+            
+            // Cerrar el vigilante
+            watcher.close();
+            
+            log.exito('🎉 🎥 MISION CUMPLIDA - TODO ENVIADO');
+            resolve(true);
         });
 
         comando.on('error', (err) => {
             log.error('💥 ERROR FFMPEG', err);
+            watcher.close();
             reject(err);
         });
 
+        // 🚀 EJECUTAR
         comando.run();
     });
-}
-
-// ==============================================
-// 💤 FUNCIÓN PARA DORMIR / ESPERAR
-// ==============================================
-function dormir(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 module.exports = { extraerYEditarSegmento };
