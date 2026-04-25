@@ -1,78 +1,60 @@
-const ffmpeg = require('fluent-ffmpeg');
-const path = require('path');
-const fs = require('fs');
+const express = require('express');
+const router = express.Router();
 const log = require('../js/logger');
 const config = require('../config');
+const fs = require('fs');
+const path = require('path');
+
+// ✅ IMPORTAR LA FUNCIÓN DE CORTAR
+const { extraerYEditarSegmento } = require('../core/cortar');
 
 // ==============================================
-// ✂️ FUNCIÓN ULTRA RÁPIDA - MODO TURBO
+// 🚀 RUTA PRINCIPAL DE PROCESO
 // ==============================================
+router.post('/procesar', async (req, res) => {
+    
+    log.separador();
+    log.info('📥 NUEVA SOLICITUD DE PROCESAMIENTO');
+    log.aviso('⚠️  Modo: CORTE RÁPIDO + EDICIÓN POR PARTES');
+    log.aviso('⚠️  Los resultados saldrán mucho más rápido!');
 
-async function extraerYEditarSegmento(rutaArchivo, numeroParte, titulo) {
-    return new Promise((resolve, reject) => {
-        try {
-            const duracionPorParte = config.DURACION_POR_PARTE || 120;
-            const tiempoInicio = (numeroParte - 1) * duracionPorParte;
-            
-            const nombreSalida = `${titulo}_parte_${numeroParte}.mp4`;
-            const rutaSalida = path.join(config.CARPETA_TEMPORAL, nombreSalida);
+    const titulo = req.body.titulo;
+    const archivo = req.body.archivo;
 
-            log.detalle(`Inicio: ${tiempoInicio}s | Duración: ${duracionPorParte}s`);
+    if(!titulo || !archivo) {
+        log.error(`❌ FALTAN DATOS -> Titulo: ${titulo}, Archivo: ${archivo}`);
+        return res.json({ status: 'error', mensaje: 'Faltan datos obligatorios' });
+    }
 
-            // ==============================================
-            // ⚡ MODO TURBO ACTIVADO
-            // ==============================================
-            let comando = ffmpeg(rutaArchivo)
-                .setStartTime(tiempoInicio)
-                .duration(duracionPorParte)
+    log.exito(`✅ DATOS RECIBIDOS CORRECTAMENTE:`);
+    log.dato(`📝 Título: ${titulo}`);
+    log.dato(`📄 Archivo: ${archivo}`);
 
-                // Velocidad
-                .videoFilters(`setpts=${1 / config.VELOCIDAD_VIDEO}*PTS`)
-                .audioFilters(`atempo=${config.VELOCIDAD_VIDEO}`)
+    const rutaCompleta = path.join(config.CARPETA_ENTRADA, archivo);
 
-                // 👇 ESTO ES LA CLAVE: ULTRA RÁPIDO
-                .outputOptions([
-                    '-c:v libx264',
-                    '-preset ultrafast',  // <-- MÁS RÁPIDO POSIBLE
-                    '-crf 28',           // Un poco más de compresión = Velocidad
-                    '-c:a aac',
-                    '-b:a 96k',
-                    '-movflags +faststart'
-                ])
-                .output(rutaSalida);
+    if(!fs.existsSync(rutaCompleta)) {
+        log.error(`❌ El archivo NO existe en: ${rutaCompleta}`);
+        return res.json({ status: 'error', mensaje: 'Archivo no encontrado en disco' });
+    }
 
-            // ==============================================
-            // 📊 PROGRESO
-            // ==============================================
-            comando.on('progress', (progreso) => {
-                if (progreso.percent) {
-                    log.detalle(`Progreso parte ${numeroParte}: ${progreso.percent.toFixed(1)}%`);
-                }
-            });
+    // ==============================================
+    // 🎬 INICIAR CORTE REAL
+    // ==============================================
+    try {
+        log.inicio('🔄 Iniciando motor FFMPEG...');
+        
+        // 🚀 ESTO LLAMA A TU CÓDIGO QUE HACE EL MILAGRO
+        await extraerYEditarSegmento(rutaCompleta, titulo);
 
-            // ==============================================
-            // ✅ FINALIZADO
-            // ==============================================
-            comando.on('end', () => {
-                log.exito(`✅ Parte ${numeroParte} lista!`);
-                resolve(rutaSalida);
-            });
+        log.exito('✅ PROCESO FINALIZADO COMPLETO');
+        res.json({ status: 'ok', mensaje: '✅ Video cortado y listo!' });
 
-            // ==============================================
-            // ❌ ERROR
-            // ==============================================
-            comando.on('error', (err) => {
-                log.error(`❌ Error parte ${numeroParte}`, err.message);
-                reject(err);
-            });
+    } catch (error) {
+        log.error('💥 ERROR EN EL CORTE:', error);
+        res.json({ status: 'error', mensaje: 'Error: ' + error.message });
+    }
 
-            comando.run();
+    log.separador();
+});
 
-        } catch (error) {
-            log.error('Error en la función', error);
-            reject(error);
-        }
-    });
-}
-
-module.exports = { extraerYEditarSegmento };
+module.exports = router;
