@@ -13,6 +13,11 @@ const { enviarVideo } = require('../routes/telegram');
 const { limpiarNombreParaArchivo } = require('../routes/titulo');
 
 // ==============================================
+// ⏱️ TIEMPO DE ESPERA ENTRE VIDEOS (5 SEGUNDOS)
+// ==============================================
+const ESPERA_ENTRE_VIDEOS = 5000; // 5000 milisegundos = 5 segundos
+
+// ==============================================
 // 🚀 FUNCIÓN PRINCIPAL
 // ==============================================
 
@@ -22,9 +27,9 @@ async function extraerYEditarSegmento(rutaArchivo, tituloOriginal) {
         
         log.separador();
         log.inicio('⚡ MODO MISIL ACTIVADO');
-        log.aviso('🔥 VELOCIDAD EXTREMA | LISTO PARA SUBIR');
+        log.aviso('🔥 MODO: CORRER TODO PRIMERO | ENVIAR CON PAUSA');
 
-        // 🧹 LIMPIAR NOMBRE PARA EL ARCHIVO (sin caracteres raros)
+        // 🧹 LIMPIAR NOMBRE PARA EL ARCHIVO
         const tituloArchivo = limpiarNombreParaArchivo(tituloOriginal);
 
         // ==============================================
@@ -33,47 +38,39 @@ async function extraerYEditarSegmento(rutaArchivo, tituloOriginal) {
         
         const comando = ffmpeg(rutaArchivo)
             
-            // 🔧 OPCIONES DE RENDIMIENTO
             .nativeFramerate()
-            .withOption('-threads', '0')       // Usar TODOS los núcleos
-            .withOption('-nostdin')            // No esperar datos
+            .withOption('-threads', '0')
+            .withOption('-nostdin')
 
-            // 🎞️ FILTROS (Velocidad + Tamaño)
             .videoFilters([
                 `setpts=1/${config.VELOCIDAD_VIDEO}*PTS`,
                 `scale=-2:720, format=yuv420p`
             ])
             .audioFilter(`atempo=${config.VELOCIDAD_VIDEO}`)
 
-            // 📦 CONFIGURACIÓN DE SALIDA RÁPIDA
             .videoCodec('libx264')
-            .addOption('-preset', 'ultrafast')    // 🏎️ MÁS RÁPIDO POSIBLE
-            .addOption('-crf', '30')             // Compresión equilibrada
-            .addOption('-tune', 'fastdecode')    // Optimizar lectura
+            .addOption('-preset', 'ultrafast')
+            .addOption('-crf', '30')
+            .addOption('-tune', 'fastdecode')
             .addOption('-max_muxing_queue_size', '1024')
 
-            // 🎧 AUDIO LIGERO
             .audioCodec('aac')
             .audioBitrate('96k')
-            .audioChannels(1) // Mono = Más rápido
+            .audioChannels(1)
 
-            // ✂️ DIVISIÓN EN PARTES
             .outputOptions([
                 `-f segment`,
                 `-segment_time ${config.DURACION_POR_PARTE}`,
                 `-reset_timestamps 1`
             ])
 
-            // 📁 RUTA DE SALIDA
             .output(path.join(config.CARPETA_TEMPORAL, `${tituloArchivo}_%03d.mp4`))
             .outputFormat('mp4');
 
         // ==============================================
         // 📊 PROGRESO
         // ==============================================
-        
         let ultimoPorcentaje = 0;
-        
         comando.on('progress', (progreso) => {
             const por = progreso.percent || 0;
             if (por >= ultimoPorcentaje + 10) {
@@ -83,40 +80,44 @@ async function extraerYEditarSegmento(rutaArchivo, tituloOriginal) {
         });
 
         // ==============================================
-        // ✅ CUANDO TERMINA, ENVIAR A TELEGRAM
+        // ✅ CUANDO TERMINA DE CORTAR TODO
         // ==============================================
-        
         comando.on('end', async () => {
-            log.exito('✅ VIDEO CORTADO | LISTO PARA ENVIAR');
+            log.exito('✅ TODOS LOS VIDEOS CORTADOS');
+            log.info('⏳ Preparando envío escalonado...');
             
             try {
                 // 📂 BUSCAR ARCHIVOS GENERADOS
                 const archivos = await fs.readdir(config.CARPETA_TEMPORAL);
-                const partes = archivos.filter(arch => arch.startsWith(tituloArchivo));
+                const partes = archivos.filter(arch => arch.startsWith(tituloArchivo)).sort(); // Ordenados
 
-                if (partes.length === 0) {
-                    throw new Error('No se encontraron partes para enviar');
-                }
+                if (partes.length === 0) throw new Error('No se encontraron archivos');
 
                 const totalPartes = partes.length;
-                log.inicio(`📤 ENCOLADOS: ${totalPartes} archivo(s)`);
+                log.inicio(`📤 Total a enviar: ${totalPartes} archivo(s)`);
 
-                // 🚀 ENVIAR CADA PARTE
+                // ==============================================
+                // 🔁 BUCLE DE ENVÍO CON PAUSA
+                // ==============================================
                 for (let i = 0; i < partes.length; i++) {
                     const parte = partes[i];
                     const rutaCompleta = path.join(config.CARPETA_TEMPORAL, parte);
                     const numeroParte = i + 1;
                     
-                    log.info(`📤 Subiendo: ${parte} (${numeroParte}/${totalPartes})`);
+                    log.info(`📤 Enviando: ${numeroParte}/${totalPartes}`);
                     
-                    // 📤 ENVIAR A CANALES CON EL TÍTULO BONITO
-                    // PASAMOS EL TÍTULO ORIGINAL (CON ESPACIOS Y TODO)
+                    // 🚀 ENVIAR VIDEO
                     await enviarVideo(rutaCompleta, tituloOriginal, numeroParte, totalPartes);
 
-                    // 🗑️ BORRAR DESPUÉS DE ENVIAR (Si está activado en config)
+                    // 🗑️ BORRAR SI ESTÁ CONFIGURADO
                     if(config.ELIMINAR_ARCHIVOS_AL_TERMINAR) {
                         await fs.unlink(rutaCompleta);
-                        log.dato(`🗑️ Eliminado: ${parte}`);
+                    }
+
+                    // ⏸️ ESPERAR ANTES DE SIGUIENTE (SI NO ES EL ÚLTIMO)
+                    if (i < partes.length - 1) {
+                        log.info(`⏳ Esperando ${ESPERA_ENTRE_VIDEOS/1000}s...`);
+                        await dormir(ESPERA_ENTRE_VIDEOS);
                     }
                 }
 
@@ -124,23 +125,25 @@ async function extraerYEditarSegmento(rutaArchivo, tituloOriginal) {
                 resolve(true);
 
             } catch (error) {
-                log.error('💥 ERROR EN ETAPA FINAL', error);
+                log.error('💥 ERROR', error);
                 reject(error);
             }
         });
 
-        // ==============================================
-        // ❌ MANEJO DE ERRORES
-        // ==============================================
-        
         comando.on('error', (err) => {
             log.error('💥 ERROR FFMPEG', err);
             reject(err);
         });
 
-        // 🚀 EJECUTAR
         comando.run();
     });
+}
+
+// ==============================================
+// 💤 FUNCIÓN PARA DORMIR / ESPERAR
+// ==============================================
+function dormir(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 module.exports = { extraerYEditarSegmento };
