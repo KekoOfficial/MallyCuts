@@ -4,16 +4,18 @@
 
 const TelegramBot = require('node-telegram-bot-api');
 const log = require('../js/logger');
-const config = require('../config'); // ✅ Importamos tu configuración
+const config = require('../config');
+
+// ✅ IMPORTAR NUEVO MÓDULO DE TÍTULOS
+const { generarDescripcion } = require('./titulo');
 
 // ==============================================
 // 🤖 INICIALIZAR BOT
 // ==============================================
 
-// Usamos el token que viene de tu config.js
 const bot = new TelegramBot(config.TOKEN, { 
     polling: false,
-    baseApiUrl: 'https://api.telegram.org' // Asegurar conexión
+    baseApiUrl: 'https://api.telegram.org'
 });
 
 log.info('🤖 Bot de Telegram conectado y listo');
@@ -23,18 +25,20 @@ log.dato(`📢 Canal Público: ${config.CANAL_PUBLICO.NOMBRE}`);
 // 🚀 FUNCIÓN PRINCIPAL ENVIAR VIDEO
 // ==============================================
 
-async function enviarVideo(rutaArchivo, titulo) {
+async function enviarVideo(rutaArchivo, titulo, numeroParte = 1, totalPartes = 1) {
     
     return new Promise((resolve, reject) => {
         
-        log.info(`📤 Iniciando envío: ${titulo}`);
+        log.info(`📤 Iniciando envío: ${titulo} (Parte ${numeroParte})`);
 
-        // 🎬 Opciones optimizadas
+        // 🎬 OBTENER TEXTOS FORMATEADOS
+        const textos = generarDescripcion(titulo, numeroParte, totalPartes);
+
         const opciones = {
-            caption: `⚡ *${titulo}*\n\n📺 ${config.TEXTO_MARCA_AGUA}`,
+            caption: textos.PUBLICO,
             parse_mode: 'Markdown',
             supports_streaming: true,
-            disable_notification: false // Que suene el mensaje
+            disable_notification: false
         };
 
         // ==============================================
@@ -45,11 +49,11 @@ async function enviarVideo(rutaArchivo, titulo) {
                 log.exito(`✅ ENVIADO AL CANAL: ${titulo}`);
                 
                 // ==============================================
-                // 📥 OPCIONAL: ENVIAR TAMBIÉN A PRIVADO
+                // 📥 ENVIAR TAMBIÉN AL CANAL PRIVADO
                 // ==============================================
                 if(config.CANAL_PRIVADO && config.CANAL_PRIVADO.ID) {
                     bot.sendVideo(config.CANAL_PRIVADO.ID, rutaArchivo, {
-                        caption: `📂 Respaldo: ${titulo}`
+                        caption: textos.PRIVADO
                     }).catch(err => log.warn('Respaldar:', err));
                 }
 
