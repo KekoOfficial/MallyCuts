@@ -1,5 +1,5 @@
 // ==============================================
-// ⚡ MOTOR DE CORTE ULTRA RÁPIDO - MALLYCUTS
+// ⚡ MODO FLASH - VELOCIDAD EXTREMA
 // ==============================================
 
 const ffmpeg = require('fluent-ffmpeg');
@@ -7,101 +7,83 @@ const path = require('path');
 const log = require('../js/logger');
 const config = require('../config');
 
-// ==============================================
-// ⚙️ CONFIGURACIÓN DE RENDIMIENTO
-// ==============================================
-
 const PARAMETROS = {
-    DURACION_PARTE: 120, // Segundos (2 minutos)
-    VELOCIDAD: 1.25,     // Velocidad de reproducción
-    CALIDAD: '720p',     // Resolución objetivo
-    CPU_USED: 4,         // Nivel de compresión (0=rápido, 8=máximo)
-    THREADS: '0'         // 0 = Usar TODOS los núcleos disponibles
+    DURACION_PARTE: 120,
+    VELOCIDAD: 1.30
 };
-
-// ==============================================
-// 🚀 FUNCIÓN PRINCIPAL
-// ==============================================
 
 async function extraerYEditarSegmento(rutaArchivo, titulo) {
     
     return new Promise((resolve, reject) => {
         
         log.separador();
-        log.inicio('🎬 INICIANDO PROCESAMIENTO AVANZADO');
-        log.dato(`⚡ Velocidad: ${PARAMETROS.VELOCIDAD}x | Parte: ${PARAMETROS.DURACION_PARTE}s`);
-        log.dato(`🔥 Modo: MÁXIMO RENDIMIENTO CPU`);
+        log.inicio('⚡ MODO FLASH ACTIVADO');
+        log.aviso('🔥 VELOCIDAD MÁXIMA | SIN COMPRESIÓN INNECESARIA');
 
         // ==============================================
-        // 🎥 COMANDO FFMPEG ULTRA OPTIMIZADO
+        // 🚀 COMANDO ULTRA RÁPIDO
         // ==============================================
         
         const comando = ffmpeg(rutaArchivo)
             
-            // 🔧 OPCIONES GLOBALES
+            // OPCIONES GLOBALES
             .nativeFramerate()
-            .withOption('-threads', PARAMETROS.THREADS)
-            // ❌ ELIMINÉ: hwaccel -> Causaba error en Termux
+            .withOption('-threads', '0')       // Todos los núcleos
+            .withOption('-nostdin')            // No esperar entrada
 
-            // 🎞️ FILTROS COMPLEJOS
+            // 🎞️ FILTROS PERO OPTIMIZADOS
             .videoFilters([
-                `setpts=1/${PARAMETROS.VELOCIDAD}*PTS`,      // Velocidad video
-                `scale=-2:720, format=yuv420p`               // Tamaño y formato rápido
+                `setpts=1/${PARAMETROS.VELOCIDAD}*PTS`,
+                `scale=-2:720, format=yuv420p`
             ])
-            .audioFilter(`atempo=${PARAMETROS.VELOCIDAD}`)   // Velocidad audio
+            .audioFilter(`atempo=${PARAMETROS.VELOCIDAD}`)
 
-            // 📦 CÓDEC Y CALIDAD
-            .videoCodec('libx264')
-            .addOption('-preset', 'veryfast')       // Codificación rápida
-            .addOption('-crf', '23')               // Calidad balanceada
-            .addOption('-tune', 'zerolatency')     // Optimizar velocidad
-            .addOption('-cpu-used', PARAMETROS.CPU_USED)
-            .addOption('-profile:v', 'main')       // Compatibilidad
+            // ==============================================
+            // 📦 EL SECRETO: MÉTODO MÁS RÁPIDO
+            // ==============================================
+            
+            .videoCodec('h264')               // Usar codec nativo del sistema
+            .addOption('-preset', 'ultrafast') // 🏎️ VELOCIDAD MÁXIMA
+            .addOption('-crf', '28')          // Un poco más de compresión = más veloz
+            .addOption('-tune', 'fastdecode') // Optimizar para leer rápido
+            .addOption('-max_muxing_queue_size', '1024')
 
-            // 🎧 AUDIO
+            // AUDIO
             .audioCodec('aac')
-            .audioBitrate('128k')
-            .audioChannels(2)
+            .audioBitrate('96k')
 
-            // ✂️ DIVIDIR EN PARTES
+            // ✂️ SEGMENTO
             .outputOptions([
                 `-f segment`,
                 `-segment_time ${PARAMETROS.DURACION_PARTE}`,
                 `-reset_timestamps 1`
             ])
 
-            // 📁 SALIDA
+            // SALIDA
             .output(path.join(config.CARPETA_TEMPORAL, `${titulo}_%03d.mp4`))
             .outputFormat('mp4');
 
         // ==============================================
-        // 📢 EVENTOS
+        // EVENTOS
         // ==============================================
         
-        let ultimoPorcentaje = 0;
-        
         comando.on('progress', (progreso) => {
-            const porcentaje = progreso.percent || 0;
-            
-            if (porcentaje >= ultimoPorcentaje + 10) {
-                log.detalle(`⚡ Progreso: ${porcentaje.toFixed(0)}%`);
-                ultimoPorcentaje = porcentaje;
+            const por = progreso.percent || 0;
+            if (por % 20 === 0) { // Mostrar menos logs = más velocidad
+                log.detalle(`⚡ ${por.toFixed(0)}%`);
             }
         });
 
         comando.on('end', () => {
-            log.exito('✅ TODAS LAS PARTES GENERADAS');
-            log.exito('⚡ Proceso finalizado a máxima velocidad');
-            log.separador();
+            log.exito('✅ LISTO! Video procesado a velocidad luz');
             resolve(true);
         });
 
         comando.on('error', (err) => {
-            log.error('💥 ERROR FATAL EN FFMPEG', err);
+            log.error('ERROR', err);
             reject(err);
         });
 
-        // 🚀 LANZAR
         comando.run();
     });
 }
