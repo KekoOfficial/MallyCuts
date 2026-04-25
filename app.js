@@ -1,41 +1,41 @@
 // ==============================================
-// 🚀 SERVIDOR PRINCIPAL - MALLYCUTS
+// 🚀 MALLYCUTS ENTERPRISE
+// APP PRINCIPAL
 // ==============================================
 
+require('./config/env');
 const express = require('express');
-const app = express();
 const path = require('path');
 
-// Importar configuración
-const log = require('./js/logger');
+// Inicializar App
+const app = express();
 
 // ==============================================
-// ⚙️ MIDDLEWARES
+// ⚙️ MIDDLEWARES GLOBALES
 // ==============================================
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ extended: true, limit: '500mb' }));
 
-// Servir archivos estáticos
+// Logger de peticiones
+app.use(require('./middlewares/logger/requestLogger'));
+
+// ==============================================
+// 📂 ARCHIVOS ESTÁTICOS
+// ==============================================
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ==============================================
-// 📂 CARGAR RUTAS CORRECTAMENTE
+// 🛣️ CARGA DE RUTAS
 // ==============================================
-const rutaUpload   = require('./routes/upload');
-const rutaProcesar = require('./routes/archivos');
-
-app.use('/upload', rutaUpload);
-app.use('/', rutaProcesar);
+app.use('/', require('./routes/index'));
+app.use('/api/archivos', require('./routes/archivos.routes'));
+app.use('/api/cortar', require('./routes/cortar.routes'));
+app.use('/api/upload', require('./routes/upload.routes'));
+app.use('/api/telegram', require('./routes/telegram.routes'));
 
 // ==============================================
-// 🚀 INICIAR SERVIDOR
+// ❌ MANEJO DE ERRORES
 // ==============================================
-const PUERTO = 3000;
+app.use(require('./middlewares/error/handler'));
 
-app.listen(PUERTO, () => {
-    log.separador();
-    log.exito('✅ MALLYCUTS ESTÁ ACTIVO');
-    log.info(`🌐 http://localhost:${PUERTO}`);
-    log.aviso('⚡ MODO DIOS 2.0 LISTO');
-    log.separador();
-});
+module.exports = app;
