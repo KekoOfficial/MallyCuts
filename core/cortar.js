@@ -41,20 +41,20 @@ async function extraerYEditarSegmento(rutaArchivo, titulo) {
             // 🔧 OPCIONES GLOBALES
             .nativeFramerate()
             .withOption('-threads', PARAMETROS.THREADS)
-            .withOption('-hwaccel', 'auto') // Aceleración hardware si existe
+            // ❌ ELIMINÉ: hwaccel -> Causaba error en Termux
 
-            // 🎞️ FILTROS COMPLEJOS (HACEMOS TODO EN UN SOLO PASO)
+            // 🎞️ FILTROS COMPLEJOS
             .videoFilters([
-                `setpts=1/${PARAMETROS.VELOCIDAD}*PTS`,      // Aumentar velocidad video
-                `scale=-2:720, format=yuv420p`               // Redimensionar y optimizar color
+                `setpts=1/${PARAMETROS.VELOCIDAD}*PTS`,      // Velocidad video
+                `scale=-2:720, format=yuv420p`               // Tamaño y formato rápido
             ])
-            .audioFilter(`atempo=${PARAMETROS.VELOCIDAD}`)   // Aumentar velocidad audio
+            .audioFilter(`atempo=${PARAMETROS.VELOCIDAD}`)   // Velocidad audio
 
             // 📦 CÓDEC Y CALIDAD
             .videoCodec('libx264')
-            .addOption('-preset', 'veryfast')      // Codificación rápida
+            .addOption('-preset', 'veryfast')       // Codificación rápida
             .addOption('-crf', '23')               // Calidad balanceada
-            .addOption('-tune', 'zerolatency')     // Optimizar para velocidad
+            .addOption('-tune', 'zerolatency')     // Optimizar velocidad
             .addOption('-cpu-used', PARAMETROS.CPU_USED)
             .addOption('-profile:v', 'main')       // Compatibilidad
 
@@ -83,9 +83,8 @@ async function extraerYEditarSegmento(rutaArchivo, titulo) {
         comando.on('progress', (progreso) => {
             const porcentaje = progreso.percent || 0;
             
-            // Mostrar solo cada 10% para no llenar logs
             if (porcentaje >= ultimoPorcentaje + 10) {
-                log.detalle(`⚡ Progreso: ${porcentaje.toFixed(0)}% | Tamaño: ${progreso.targetSize}kb`);
+                log.detalle(`⚡ Progreso: ${porcentaje.toFixed(0)}%`);
                 ultimoPorcentaje = porcentaje;
             }
         });
