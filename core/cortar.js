@@ -8,20 +8,24 @@ const log = require('../js/logger');
 const config = require('../config');
 const fs = require('fs').promises;
 
-// ✅ IMPORTAR MÓDULO DE TELEGRAM
+// ✅ IMPORTAR MÓDULOS
 const { enviarVideo } = require('../routes/telegram');
+const { limpiarNombreParaArchivo } = require('../routes/titulo');
 
 // ==============================================
 // 🚀 FUNCIÓN PRINCIPAL
 // ==============================================
 
-async function extraerYEditarSegmento(rutaArchivo, titulo) {
+async function extraerYEditarSegmento(rutaArchivo, tituloOriginal) {
     
     return new Promise((resolve, reject) => {
         
         log.separador();
         log.inicio('⚡ MODO MISIL ACTIVADO');
         log.aviso('🔥 VELOCIDAD EXTREMA | LISTO PARA SUBIR');
+
+        // 🧹 LIMPIAR NOMBRE PARA EL ARCHIVO (sin caracteres raros)
+        const tituloArchivo = limpiarNombreParaArchivo(tituloOriginal);
 
         // ==============================================
         // 🎬 COMANDO FFMPEG ULTRA RÁPIDO
@@ -61,7 +65,7 @@ async function extraerYEditarSegmento(rutaArchivo, titulo) {
             ])
 
             // 📁 RUTA DE SALIDA
-            .output(path.join(config.CARPETA_TEMPORAL, `${titulo}_%03d.mp4`))
+            .output(path.join(config.CARPETA_TEMPORAL, `${tituloArchivo}_%03d.mp4`))
             .outputFormat('mp4');
 
         // ==============================================
@@ -88,22 +92,26 @@ async function extraerYEditarSegmento(rutaArchivo, titulo) {
             try {
                 // 📂 BUSCAR ARCHIVOS GENERADOS
                 const archivos = await fs.readdir(config.CARPETA_TEMPORAL);
-                const partes = archivos.filter(arch => arch.startsWith(titulo));
+                const partes = archivos.filter(arch => arch.startsWith(tituloArchivo));
 
                 if (partes.length === 0) {
                     throw new Error('No se encontraron partes para enviar');
                 }
 
-                log.inicio(`📤 ENCOLADOS: ${partes.length} archivo(s)`);
+                const totalPartes = partes.length;
+                log.inicio(`📤 ENCOLADOS: ${totalPartes} archivo(s)`);
 
                 // 🚀 ENVIAR CADA PARTE
-                for (const parte of partes) {
+                for (let i = 0; i < partes.length; i++) {
+                    const parte = partes[i];
                     const rutaCompleta = path.join(config.CARPETA_TEMPORAL, parte);
+                    const numeroParte = i + 1;
                     
-                    log.info(`📤 Subiendo: ${parte}`);
+                    log.info(`📤 Subiendo: ${parte} (${numeroParte}/${totalPartes})`);
                     
-                    // 📤 ENVIAR A CANALES (Público y Privado)
-                    await enviarVideo(rutaCompleta, titulo);
+                    // 📤 ENVIAR A CANALES CON EL TÍTULO BONITO
+                    // PASAMOS EL TÍTULO ORIGINAL (CON ESPACIOS Y TODO)
+                    await enviarVideo(rutaCompleta, tituloOriginal, numeroParte, totalPartes);
 
                     // 🗑️ BORRAR DESPUÉS DE ENVIAR (Si está activado en config)
                     if(config.ELIMINAR_ARCHIVOS_AL_TERMINAR) {
