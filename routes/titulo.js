@@ -28,7 +28,7 @@ ${emojiAleatorio} *${titulo}*
     // ==============================================
     // 📂 TEXTO PARA EL CANAL PRIVADO (RESPALDO)
     // ==============================================
-    const privado = `📂 Respaldo: ${titulo} (Parte ${numeroParte})`;
+    const privado = `🎬: ${titulo} (Parte ${numeroParte})`;
 
     // ==============================================
     // 📦 DEVOLVER AMBOS TEXTOS
