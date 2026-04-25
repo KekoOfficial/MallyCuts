@@ -3,62 +3,44 @@
 // ==============================================
 
 const express = require('express');
+const router = express.Router();
+const app = express();
 const path = require('path');
-const fs = require('fs');
 
-// Importación de módulos internos
+// Importar módulos
 const log = require('./js/logger');
 const config = require('./config');
 
 // ==============================================
-// 🚀 INICIALIZACIÓN DEL SERVIDOR
+// ⚙️ MIDDLEWARES
 // ==============================================
-const app = express();
-const PUERTO = config.PUERTO || 3000;
-
-// Middlewares para leer datos
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Carpeta pública (HTML, CSS, JS)
+// Servir archivos estáticos (CSS, JS, HTML)
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ==============================================
-// 📂 CREAR CARPETAS SI NO EXISTEN
+// 📂 CARGAR RUTAS
 // ==============================================
-const carpetas = [
-    config.CARPETA_ENTRADA,
-    config.CARPETA_TEMPORAL
-];
+const rutaUpload = require('./routes/upload');
+const rutaProcesar = require('./routes/archivos');
+const rutaConfig = require('./routes/config');
 
-carpetas.forEach(carpeta => {
-    if (!fs.existsSync(carpeta)) {
-        fs.mkdirSync(carpeta, { recursive: true });
-        log.info(`📂 Carpeta creada: ${carpeta}`);
-    }
-});
+// ✅ AQUÍ ESTABA EL ERROR: ASÍ SE PONE BIEN
+app.use('/upload', rutaUpload);
+app.use('/', rutaProcesar);   // -> Aquí está tu /procesar
+app.use('/config', rutaConfig);
 
 // ==============================================
-// 🔌 CONEXIÓN DE ROUTERS
+// 🚀 INICIAR SERVIDOR
 // ==============================================
+const PUERTO = 3000;
 
-// Ruta principal del proceso completo
-app.use('/', require('./routes/archivos'));
-
-// Módulos separados
-app.use('/telegram', require('./routes/telegram'));
-app.use('/cortar', require('./routes/cortar'));
-app.use('/upload', require('./routes/upload'));
-app.use('/enlaces', require('./routes/enlaces'));
-app.use('/config', require('./routes/config'));
-
-// ==============================================
-// 🟢 INICIAR SERVIDOR
-// ==============================================
 app.listen(PUERTO, () => {
     log.separador();
     log.exito('✅ MALLYCUTS ESTÁ ACTIVO Y FUNCIONANDO');
     log.info(`🌐 Accede desde: http://localhost:${PUERTO}`);
-    log.info(`⚙️ Modo: Optimizado | Rápido | Seguro`);
+    log.aviso('⚙️ Modo: OPTIMIZADO | RÁPIDO | SEGURO');
     log.separador();
 });
