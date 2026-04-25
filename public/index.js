@@ -54,21 +54,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==============================================
     
     const inputFile = document.getElementById('video');
-    const fileLabel = document.getElementById('file-label');
+    const fileText = document.getElementById('file-text');
 
     if(inputFile) {
         inputFile.addEventListener('change', function(e) {
             if(e.target.files.length > 0) {
-                fileLabel.textContent = e.target.files[0].name;
+                fileText.textContent = e.target.files[0].name;
             } else {
-                fileLabel.textContent = 'Ningún archivo seleccionado';
+                fileText.textContent = 'Click para seleccionar un video';
             }
         });
     }
 
     // ==============================================
-    // 🚀 FORMULARIO: SUBIR ARCHIVO
-    // Llama a: /upload y luego /procesar
+    // 🚀 FORMULARIO SUBIR ARCHIVO
     // ==============================================
     
     const formArchivo = document.getElementById('formularioArchivo');
@@ -81,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
             desactivarBoton(btn, '⏳ SUBIENDO...');
 
             try {
-                // 1. Subir el archivo (usando el router upload)
+                // 1. SUBIR EL ARCHIVO
                 const formData = new FormData(formArchivo);
                 
                 const resUpload = await fetch('/upload', {
@@ -95,12 +94,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(dataUpload.mensaje || 'Error al subir');
                 }
 
-                mostrarMensaje('📄 Archivo subido correctamente. Iniciando corte...', 'ok');
+                mostrarMensaje('📄 Archivo subido. Iniciando proceso...', 'ok');
                 
-                // 2. Una vez subido, llamar al proceso completo
-                activarBoton(btn, '🚀 INICIAR PROCESO');
-
-                // Aquí conectamos con el proceso principal
+                // 2. ENVIAR A PROCESAR
                 const resProceso = await fetch('/procesar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -111,68 +107,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 const dataProceso = await resProceso.json();
-                mostrarMensaje(dataProceso.mensaje, dataProceso.status);
+                
+                if(dataProceso.status === 'ok') {
+                    mostrarMensaje('✅ ' + dataProceso.mensaje, 'ok');
+                } else {
+                    throw new Error(dataProceso.mensaje);
+                }
+
+                activarBoton(btn, '🚀 INICIAR PROCESO');
 
             } catch (error) {
                 mostrarMensaje('❌ Error: ' + error.message, 'error');
                 activarBoton(btn, '🚀 INICIAR PROCESO');
+                console.error(error);
             }
         });
     }
 
-    // ==============================================
-    // 🔗 FORMULARIO: ENLACE / LINK
-    // Llama a: /enlaces/procesar
-    // ==============================================
-    
-    const formEnlace = document.getElementById('formularioEnlace');
-
-    if(formEnlace) {
-        formEnlace.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const btn = e.target.querySelector('button[type="submit"]');
-            desactivarBoton(btn, '⏳ DESCARGANDO...');
-
-            try {
-                const datos = {
-                    titulo: document.getElementById('tituloEnlace').value,
-                    url: document.getElementById('url').value
-                };
-
-                // Llamamos al router de enlaces
-                const res = await fetch('/enlaces/procesar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(datos)
-                });
-
-                const data = await res.json();
-                mostrarMensaje(data.mensaje, data.status);
-                activarBoton(btn, '🚀 DESCARGAR Y PROCESAR');
-
-            } catch (error) {
-                mostrarMensaje('❌ Error: ' + error.message, 'error');
-                activarBoton(btn, '🚀 DESCARGAR Y PROCESAR');
-            }
-        });
-    }
-
-    // ==============================================
-    // ⚙️ OBTENER CONFIGURACIÓN AL INICIAR
-    // ==============================================
-    
-    async function cargarConfig() {
-        try {
-            const res = await fetch('/config');
-            const config = await res.json();
-            console.log('⚙️ Configuración cargada:', config);
-        } catch (e) {
-            console.log('ℹ️ Sistema listo');
-        }
-    }
-
-    cargarConfig();
-
-    console.log('🎮 Controlador MallyCuts v2.0 activo');
+    console.log('🎮 MallyCuts listo para usar');
 });
