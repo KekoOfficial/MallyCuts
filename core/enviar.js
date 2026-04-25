@@ -1,98 +1,84 @@
-// 📤 MÓDULO DE ENVÍO A TELEGRAM
-// Adaptado para la nueva estructura de configuración
+// ==============================================
+// 📤 MÓDULO DE ENVÍO - MODO DIOS 2.0
+// ==============================================
 
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
-const FormData = require('form-data');
-const log = require('../js/logger');
-const config = require('../config');
+const TelegramBot = require('node-telegram-bot-api');
+const log = require('./logger'); // Ajusta la ruta si es necesario
+const config = require('../routes/config');
+const { generarDescripcion } = require('../routes/titulo');
 
-// URL base de la API
-const API_URL = `https://api.telegram.org/bot${config.TOKEN}/`;
+// ==============================================
+// 🤖 INICIALIZAR BOT
+// ==============================================
+const bot = new TelegramBot(config.TOKEN, {
+    polling: false,
+    baseApiUrl: 'https://api.telegram.org'
+});
 
-/**
- * Envía un video a un canal específico
- */
-async function enviarACanal(rutaArchivo, mensaje, idCanal, numeroParte) {
-    try {
-        if (!fs.existsSync(rutaArchivo)) {
-            throw new Error(`Archivo no encontrado: ${rutaArchivo}`);
+log.info('🤖 Bot Telegram cargado y listo');
+
+// ==============================================
+// 💤 FUNCIÓN DORMIR
+// ==============================================
+const dormir = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// ==============================================
+// 🚀 FUNCIÓN PRINCIPAL DE ENVÍO
+// ==============================================
+async function enviarVideo(rutaArchivo, titulo, numeroParte = 1, totalPartes = 1) {
+    
+    // 🎬 GENERAR DESCRIPCIÓN FORMATEADA
+    const textos = generarDescripcion(titulo, numeroParte, totalPartes);
+
+    const opciones = {
+        caption: textos.PUBLICO,
+        parse_mode: 'Markdown',
+        supports_streaming: true,
+        disable_notification: false
+    };
+
+    // ==============================================
+    // 📤 ENVIAR AL CANAL PÚBLICO
+    // ==============================================
+    await bot.sendVideo(config.CANAL_PUBLICO.ID, rutaArchivo, opciones);
+    log.exito(`✅ ENVIADO: Parte ${numeroParte}/${totalPartes}`);
+
+    // ==============================================
+    // 📂 ENVIAR AL CANAL PRIVADO (RESPALDO)
+    // ==============================================
+    if (config.CANAL_PRIVADO && config.CANAL_PRIVADO.ID) {
+        try {
+            await bot.sendVideo(config.CANAL_PRIVADO.ID, rutaArchivo, {
+                caption: textos.PRIVADO
+            });
+        } catch (err) {
+            log.warn('⚠️ No se pudo subir al respaldo');
         }
-
-        const tamanoMB = (fs.statSync(rutaArchivo).size / (1024 * 1024)).toFixed(2);
-        log.detalle(`Enviando parte ${numeroParte} al canal ${idCanal} | ${tamanoMB} MB`);
-
-        // Preparamos datos
-        const formData = new FormData();
-        formData.append('chat_id', idCanal);
-        formData.append('caption', mensaje);
-        formData.append('parse_mode', 'HTML');
-        formData.append('supports_streaming', 'true');
-        formData.append('video', fs.createReadStream(rutaArchivo), {
-            filename: path.basename(rutaArchivo),
-            contentType: 'video/mp4'
-        });
-
-        // Enviamos
-        const respuesta = await axios.post(`${API_URL}sendVideo`, formData, {
-            headers: formData.getHeaders(),
-            maxBodyLength: Infinity,
-            timeout: config.TIEMPO_ESPERA_ENVIO || 300000
-        });
-
-        if (respuesta.data && respuesta.data.ok) {
-            log.exito(`✅ Parte ${numeroParte} enviada correctamente`);
-            return true;
-        } else {
-            throw new Error(`Respuesta API: ${JSON.stringify(respuesta.data)}`);
-        }
-
-    } catch (error) {
-        log.error(`❌ Error al enviar parte ${numeroParte}`, error);
-        return false;
     }
+
+    return true;
 }
 
-/**
- * Envía a los dos canales configurados
- */
-async function enviarADosCanales(rutaArchivo, mensaje, numeroParte) {
+// ==============================================
+// 📢 FUNCIÓN ENVIAR MENSAJE DE TEXTO
+// ==============================================
+async function enviarMensaje(texto, canal = 'PUBLICO') {
     try {
-        // Verificamos credenciales
-        if (!config.TOKEN) {
-            throw new Error('No se configuró el TOKEN del bot en config.js');
-        }
+        const chatId = canal === 'PUBLICO' 
+            ? config.CANAL_PUBLICO.ID 
+            : config.CANAL_PRIVADO.ID;
 
-        const canalPublicoID = config.CANAL_PUBLICO.ID;
-        const canalPrivadoID = config.CANAL_PRIVADO.ID;
-
-        if (!canalPublicoID && !canalPrivadoID) {
-            throw new Error('No hay canales configurados para enviar');
-        }
-
-        let enviadoOK = false;
-
-        // Enviar al canal público
-        if (canalPublicoID) {
-            const enviado = await enviarACanal(rutaArchivo, mensaje, canalPublicoID, numeroParte);
-            if (enviado) enviadoOK = true;
-        }
-
-        // Enviar al canal privado
-        if (canalPrivadoID) {
-            const enviado = await enviarACanal(rutaArchivo, mensaje, canalPrivadoID, numeroParte);
-            if (enviado) enviadoOK = true;
-        }
-
-        return enviadoOK;
-
-    } catch (error) {
-        log.error(`Error general envío parte ${numeroParte}`, error);
+        await bot.sendMessage(chatId, texto, {
+            parse_mode: 'Markdown'
+        });
+        return true;
+    } catch (err) {
+        log.error('❌ Error al enviar mensaje', err);
         return false;
     }
 }
 
 module.exports = {
-    enviarADosCanales
+    enviarVideo,
+    enviarMensaje
 };
